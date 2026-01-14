@@ -506,7 +506,7 @@
         
         if (myPreferences.useRealTimeAnalysis) {
             btn.classList.add('hidden'); 
-            statusTxt.innerText = "(Auto Analysis: ON)";
+            statusTxt.innerText = ""; // Changed from "(Auto Analysis: ON)" to ""
             analyzeSoil(); 
         } else {
             btn.classList.remove('hidden'); 
