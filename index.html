@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>โปรแกรมวิเคราะห์ดินเทียบสีดิจิทัล (Multi-User Edition)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .color-box { transition: all 0.3s ease; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; margin: 0; 
+        }
+        .marker-box {
+            position: absolute;
+            width: 30px; 
+            height: 30px;
+            border: 2px solid #00ff00;
+            background-color: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            display: none;
+        }
+        .cursor-crosshair { cursor: crosshair; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-2 md:p-8">
+
+    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-emerald-600 p-6 text-white text-center relative">
+            <h1 class="text-2xl md:text-3xl font-bold">🌱 Soil Color Analyzer Pro</h1>
+            <p class="mt-2 opacity-90">โปรแกรมเทียบค่าสี RGB เพื่อวิเคราะห์ธาตุอาหารดิน</p>
+            <div id="userInfoDisplay" class="absolute top-4 right-4 text-sm hidden">
+                <span id="loggedInUser" class="font-bold mr-2"></span>
+                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs transition">Logout</button>
+            </div>
+        </div>
+
+        <div class="p-4 md:p-6">
+            
+            <!-- Main Tabs -->
+            <div class="flex border-b mb-6">
+                <button onclick="switchTab('analyze')" id="btn-analyze" class="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition">
+                    🔍 วิเคราะห์ผล
+                </button>
+                <button onclick="switchTab('config')" id="btn-config" class="flex-1 py-3 text-gray-500 hover:text-emerald-500 font-medium focus:outline-none transition">
+                    ⚙️ ระบบจัดการ (Admin)
+                </button>
+            </div>
+
+            <!-- ================= SECTION 1: Analyze ================= -->
+            <div id="tab-analyze" class="block animate-fade-in">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    <!-- Left: Input Controls -->
+                    <div class="space-y-6">
+                        <div class="bg-white border rounded-lg p-4 shadow-sm">
+                            <label class="font-bold text-gray-700 mb-2 block">1. เลือกธาตุที่ต้องการตรวจ:</label>
+                            <select id="testType" class="w-full border rounded p-2 bg-gray-50 text-gray-700 font-semibold" onchange="analyzeSoil()">
+                                <option value="N">Nitrogen (N) - ไนโตรเจน</option>
+                                <option value="Nitrate">Nitrate (NO3) - ไนเตรท</option>
+                                <option value="P">Phosphorus (P) - ฟอสฟอรัส</option>
+                                <option value="K">Potassium (K) - โพแทสเซียม</option>
+                                <option value="pH">pH - ความเป็นกรดด่าง</option>
+                            </select>
+                        </div>
+
+                        <!-- Camera / Image Input Section -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <label class="font-bold text-gray-700 mb-2 block">2. แหล่งที่มาของสี (Source):</label>
+                            
+                            <div class="flex gap-2 mb-4">
+                                <button onclick="toggleCamera()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded shadow text-sm">
+                                    <i class="fas fa-camera mr-1"></i> ใช้กล้อง Webcam
+                                </button>
+                                <button onclick="triggerFileUpload()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded shadow text-sm">
+                                    <i class="fas fa-image mr-1"></i> อัปโหลดรูป
+                                </button>
+                                <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                            </div>
+
+                            <!-- Camera/Image Preview Area -->
+                            <div id="mediaContainer" class="relative w-full h-64 bg-black rounded-lg overflow-hidden hidden cursor-crosshair group" 
+                                 onclick="handleMediaClick(event)">
+                                <video id="videoElement" autoplay playsinline class="absolute top-0 left-0 w-full h-full object-contain hidden opacity-0"></video>
+                                <img id="imagePreview" class="absolute top-0 left-0 w-full h-full object-contain hidden opacity-0" />
+                                <canvas id="canvasElement" class="absolute top-0 left-0 w-full h-full"></canvas>
+                                <div id="colorMarker" class="marker-box"></div>
+                                <div class="absolute bottom-2 left-0 w-full text-center pointer-events-none z-20">
+                                    <span class="bg-black/60 text-white px-3 py-1 rounded text-xs shadow">
+                                        คลิกที่ภาพเพื่อล็อคจุดตรวจวัด (30x30 px)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Manual RGB Sliders -->
+                        <div class="bg-gray-100 p-6 rounded-lg relative">
+                            <h2 class="text-sm font-bold text-gray-500 mb-4 uppercase">3. ค่าสี RGB (ปรับแต่งละเอียด)</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between">
+                                        <label class="text-red-600 font-bold">R</label>
+                                        <span id="valR" class="text-gray-600">128</span>
+                                    </div>
+                                    <input type="range" id="inputR" min="0" max="255" value="128" class="w-full accent-red-500" oninput="updateInputDisplay()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between">
+                                        <label class="text-green-600 font-bold">G</label>
+                                        <span id="valG" class="text-gray-600">128</span>
+                                    </div>
+                                    <input type="range" id="inputG" min="0" max="255" value="128" class="w-full accent-green-500" oninput="updateInputDisplay()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between">
+                                        <label class="text-blue-600 font-bold">B</label>
+                                        <span id="valB" class="text-gray-600">128</span>
+                                    </div>
+                                    <input type="range" id="inputB" min="0" max="255" value="128" class="w-full accent-blue-500" oninput="updateInputDisplay()">
+                                </div>
+                            </div>
+
+                            <!-- Brightness Display (Toggleable) -->
+                            <div id="brightnessContainer" class="mt-4 p-2 bg-yellow-100 rounded border border-yellow-300 hidden">
+                                <div class="flex justify-between items-center text-yellow-800">
+                                    <span class="font-bold text-sm"><i class="fas fa-sun mr-1"></i> ความสว่าง (Brightness)</span>
+                                    <span id="valBrightness" class="font-mono font-bold">0</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Color Preview Box -->
+                            <div class="mt-4 flex items-center gap-4">
+                                <div class="text-xs text-gray-500">สีที่เลือก:</div>
+                                <div id="colorPreview" class="w-full h-12 rounded shadow-inner border border-gray-300 bg-gray-400"></div>
+                            </div>
+                        </div>
+
+                        <button onclick="analyzeSoil()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition transform active:scale-95">
+                            ประมวลผลวิเคราะห์
+                        </button>
+                        <p class="text-center text-xs text-gray-400 mt-2" id="autoAnalyzeStatus"></p>
+                    </div>
+
+                    <!-- Right: Result Section -->
+                    <div class="flex flex-col h-full">
+                        <div class="flex-grow flex flex-col justify-center items-center bg-emerald-50 rounded-xl border-2 border-emerald-100 p-6 text-center shadow-sm">
+                            <h3 class="text-gray-500 font-medium uppercase tracking-wider mb-4">ผลการวิเคราะห์</h3>
+                            <div id="resultText" class="text-4xl md:text-6xl font-extrabold text-gray-300 animate-pulse">...</div>
+                            <div id="resultDesc" class="mt-6 text-lg text-gray-600">เลือกธาตุและกำหนดค่าสีเพื่อเริ่มวิเคราะห์</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= SECTION 2: Config / Admin ================= -->
+            <div id="tab-config" class="hidden">
+                
+                <!-- Login Screen -->
+                <div id="login-panel" class="max-w-sm mx-auto mt-10 p-6 bg-white border rounded-xl shadow-md">
+                    <div class="text-center mb-6">
+                        <div class="bg-emerald-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-600">
+                            <i class="fas fa-user-lock text-2xl"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-800">เข้าสู่ระบบ</h2>
+                        <p class="text-xs text-gray-500">Default: admin / admin123</p>
+                    </div>
+                    <form onsubmit="handleLogin(event)">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                            <input type="text" id="username" class="w-full px-3 py-2 border rounded focus:outline-none focus:border-emerald-500" placeholder="admin" required>
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                            <input type="password" id="password" class="w-full px-3 py-2 border rounded focus:outline-none focus:border-emerald-500" placeholder="••••••" required>
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-2 rounded hover:bg-emerald-700 transition">เข้าสู่ระบบ</button>
+                        <p id="loginError" class="text-red-500 text-xs mt-3 text-center hidden">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</p>
+                    </form>
+                </div>
+
+                <!-- Admin Dashboard -->
+                <div id="admin-panel" class="hidden">
+                    <div class="flex flex-col md:flex-row gap-6">
+                        
+                        <!-- Sidebar -->
+                        <div class="w-full md:w-1/4">
+                            <div class="bg-gray-100 rounded-lg p-2 space-y-1">
+                                <button onclick="switchAdminTab('color-config')" id="menu-color-config" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow">
+                                    <i class="fas fa-palette w-6"></i> ตั้งค่าสี (Color Config)
+                                </button>
+                                <button onclick="switchAdminTab('user-manage')" id="menu-user-manage" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600">
+                                    <i class="fas fa-users-cog w-6"></i> จัดการผู้ใช้ (Users)
+                                </button>
+                                <button onclick="switchAdminTab('change-pass')" id="menu-change-pass" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600">
+                                    <i class="fas fa-key w-6"></i> เปลี่ยนรหัสผ่าน
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="w-full md:w-3/4 bg-white border rounded-lg p-6">
+                            
+                            <!-- 2.1.1 Color Config -->
+                            <div id="admin-color-config" class="block">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">จัดการฐานข้อมูลสี (ส่วนตัว)</h3>
+                                
+                                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r space-y-3">
+                                    <h4 class="font-bold text-gray-800 border-b border-yellow-200 pb-1">ตั้งค่าการทำงานส่วนตัว (System Settings)</h4>
+                                    
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="toggleBrightness" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500" onchange="toggleBrightnessSetting()">
+                                        <label for="toggleBrightness" class="ml-2 text-gray-700 font-medium cursor-pointer">แสดงค่าความสว่าง</label>
+                                    </div>
+
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="toggleRealTime" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500" onchange="toggleRealTimeSetting()">
+                                        <label for="toggleRealTime" class="ml-2 text-gray-700 font-medium cursor-pointer">วิเคราะห์ผล Real-time</label>
+                                    </div>
+
+                                    <div class="mt-3 border-t border-yellow-200 pt-3">
+                                        <label class="block text-gray-700 font-medium mb-1 text-sm"><i class="fas fa-video mr-1"></i> เลือกกล้อง</label>
+                                        <div class="flex gap-2">
+                                            <select id="cameraSelect" class="flex-1 p-2 border rounded text-sm bg-white" onchange="updateCameraSelection()">
+                                                <option value="">-- กล้องเริ่มต้น --</option>
+                                            </select>
+                                            <button onclick="populateCameraList()" class="bg-yellow-500 text-white px-3 py-1 rounded text-xs hover:bg-yellow-600 transition" title="Refresh">
+                                                <i class="fas fa-sync"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h4 class="font-bold text-gray-700 mb-2">ตารางช่วงสี (ข้อมูลของคุณ)</h4>
+                                <div class="overflow-x-auto mb-6 max-h-96 overflow-y-auto border rounded">
+                                    <table class="w-full text-sm text-left text-gray-500">
+                                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0">
+                                            <tr>
+                                                <th class="px-3 py-3">Type</th>
+                                                <th class="px-3 py-3">Level</th>
+                                                <th class="px-3 py-3 bg-red-50 text-center">R</th>
+                                                <th class="px-3 py-3 bg-green-50 text-center">G</th>
+                                                <th class="px-3 py-3 bg-blue-50 text-center">B</th>
+                                                <th class="px-3 py-3 text-center">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="configTableBody"></tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="bg-gray-50 p-4 rounded-lg border">
+                                    <h4 class="font-bold text-sm mb-2 text-gray-700">เพิ่มช่วงสีใหม่</h4>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                                        <input id="newType" type="text" placeholder="Type" class="p-2 border rounded text-sm">
+                                        <input id="newLevel" type="text" placeholder="Level" class="p-2 border rounded text-sm">
+                                        <input id="newRMin" type="number" placeholder="R Min" class="p-2 border rounded text-sm">
+                                        <input id="newRMax" type="number" placeholder="R Max" class="p-2 border rounded text-sm">
+                                        <input id="newGMin" type="number" placeholder="G Min" class="p-2 border rounded text-sm">
+                                        <input id="newGMax" type="number" placeholder="G Max" class="p-2 border rounded text-sm">
+                                        <input id="newBMin" type="number" placeholder="B Min" class="p-2 border rounded text-sm">
+                                        <input id="newBMax" type="number" placeholder="B Max" class="p-2 border rounded text-sm">
+                                    </div>
+                                    <button onclick="addRange()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm w-full"><i class="fas fa-plus"></i> เพิ่มข้อมูล</button>
+                                </div>
+                            </div>
+
+                            <!-- 2.1.2 User Management -->
+                            <div id="admin-user-manage" class="hidden">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">จัดการผู้ใช้ (Admin Only)</h3>
+                                <div class="mb-6">
+                                    <table class="w-full text-sm text-left text-gray-500 border rounded">
+                                        <thead class="bg-gray-100 text-gray-700">
+                                            <tr>
+                                                <th class="px-4 py-2">Username</th>
+                                                <th class="px-4 py-2">Role</th>
+                                                <th class="px-4 py-2 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="userTableBody"></tbody>
+                                    </table>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg border">
+                                    <h4 class="font-bold text-sm mb-2 text-gray-700">เพิ่มผู้ใช้ใหม่</h4>
+                                    <div class="flex gap-2">
+                                        <input id="newUsername" type="text" placeholder="Username" class="flex-1 p-2 border rounded text-sm">
+                                        <input id="newPassword" type="text" placeholder="Password" class="flex-1 p-2 border rounded text-sm">
+                                        <button onclick="addUser()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm">สร้าง</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2.1.3 Change Password -->
+                            <div id="admin-change-pass" class="hidden">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">เปลี่ยนรหัสผ่านส่วนตัว</h3>
+                                <div class="max-w-md">
+                                    <div class="mb-4">
+                                        <label class="block text-gray-700 text-sm mb-1">รหัสผ่านใหม่</label>
+                                        <input type="password" id="changeNewPass" class="w-full p-2 border rounded">
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-gray-700 text-sm mb-1">ยืนยันรหัสผ่านใหม่</label>
+                                        <input type="password" id="changeConfirmPass" class="w-full p-2 border rounded">
+                                    </div>
+                                    <button onclick="changePassword()" class="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600">บันทึกรหัสผ่าน</button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    // --- 1. DEFAULT CONSTANTS (Templates) ---
+    const DEFAULT_USERS = [
+        { id: 1, username: 'admin', password: 'admin123', role: 'admin' }, 
+        { id: 2, username: 'staff', password: '123', role: 'user' }
+    ];
+
+    const DEFAULT_SOIL_DATA = [
+        { type: 'N', level: 'ต่ำ (Low)',   r: [200, 255], g: [180, 230], b: [180, 230] }, 
+        { type: 'N', level: 'ปานกลาง (Medium)', r: [200, 255], g: [100, 179], b: [100, 179] },
+        { type: 'N', level: 'สูง (High)',  r: [150, 255], g: [0, 99],    b: [0, 99] },
+        { type: 'Nitrate', level: 'ต่ำ (0-10)',      r: [240, 255], g: [240, 255], b: [240, 255] },
+        { type: 'Nitrate', level: 'ปานกลาง (10-25)', r: [230, 250], g: [200, 220], b: [230, 250] },
+        { type: 'Nitrate', level: 'สูง (>25)',       r: [200, 230], g: [150, 180], b: [200, 230] },
+        { type: 'P', level: 'ต่ำ (Low)',   r: [180, 220], g: [180, 220], b: [220, 255] },
+        { type: 'P', level: 'ปานกลาง (Medium)', r: [100, 179], g: [100, 179], b: [200, 255] },
+        { type: 'P', level: 'สูง (High)',  r: [0, 99],    g: [0, 99],    b: [150, 255] },
+        { type: 'K', level: 'ต่ำ (Low)',   r: [240, 255], g: [240, 255], b: [200, 240] },
+        { type: 'K', level: 'สูง (High)',  r: [200, 230], g: [200, 230], b: [100, 180] },
+    ];
+
+    // --- 2. GLOBAL STATE ---
+    let users = []; // List of all users
+    let currentUser = null;
+    
+    // User-Specific Data (Loaded after login)
+    let mySoilData = []; 
+    let myPreferences = {
+        showBrightness: false,
+        useRealTimeAnalysis: false,
+        selectedCameraId: ''
+    };
+
+    // Camera/Image State
+    let videoStream = null;
+    let isCameraActive = false;
+    const MARKER_SIZE = 30;
+    let markerPosition = null; 
+
+    // --- 3. STORAGE MANAGER ---
+
+    // 3.1 Load "Users" List (Global)
+    function loadUsersList() {
+        const storedUsers = localStorage.getItem('soil_sys_users');
+        if (storedUsers) {
+            users = JSON.parse(storedUsers);
+        } else {
+            users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+            localStorage.setItem('soil_sys_users', JSON.stringify(users));
+        }
+    }
+
+    // 3.2 Load Data SPECIFIC to Current User
+    function loadUserData(username) {
+        const storageKey = `soil_settings_${username}`;
+        const storedData = localStorage.getItem(storageKey);
+
+        if (storedData) {
+            const parsed = JSON.parse(storedData);
+            mySoilData = parsed.soilData || [];
+            myPreferences = parsed.preferences || myPreferences;
+        } else {
+            // First time user: Copy default templates
+            mySoilData = JSON.parse(JSON.stringify(DEFAULT_SOIL_DATA));
+            // Default preferences already set in variable declaration
+            saveUserData(); // Create the file
+        }
+    }
+
+    // 3.3 Save Data SPECIFIC to Current User
+    function saveUserData() {
+        if (!currentUser) return;
+        const storageKey = `soil_settings_${currentUser.username}`;
+        const payload = {
+            soilData: mySoilData,
+            preferences: myPreferences
+        };
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+    }
+
+    // Initialize System
+    loadUsersList();
+
+    // --- 4. AUTH & LOGIN ---
+    
+    function handleLogin(e) {
+        e.preventDefault();
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        
+        loadUsersList(); // Reload to ensure fresh data
+        const foundUser = users.find(user => user.username === u && user.password === p);
+        
+        if (foundUser) {
+            performLogin(foundUser);
+        } else {
+            document.getElementById('loginError').classList.remove('hidden');
+        }
+    }
+
+    function performLogin(user) {
+        currentUser = user;
+        loadUserData(user.username); // <--- LOAD USER SPECIFIC DATA HERE
+
+        // UI Setup
+        document.getElementById('login-panel').classList.add('hidden');
+        document.getElementById('admin-panel').classList.remove('hidden');
+        document.getElementById('userInfoDisplay').classList.remove('hidden');
+        document.getElementById('loggedInUser').innerText = `👤 ${user.username} (${user.role})`;
+        
+        // RBAC: Show/Hide User Management
+        const userManageBtn = document.getElementById('menu-user-manage');
+        if (user.role === 'admin') {
+            userManageBtn.classList.remove('hidden');
+        } else {
+            userManageBtn.classList.add('hidden');
+        }
+
+        // Apply Preferences
+        document.getElementById('toggleBrightness').checked = myPreferences.showBrightness;
+        toggleBrightnessSetting(false); // Update UI without saving again
+
+        document.getElementById('toggleRealTime').checked = myPreferences.useRealTimeAnalysis;
+        toggleRealTimeSetting(false);
+
+        // Attempt to select last used camera
+        populateCameraList();
+
+        renderConfigTable();
+        renderUserTable();
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        document.getElementById('loginError').classList.add('hidden');
+    }
+
+    function logout() {
+        // Stop camera if active
+        if(isCameraActive) {
+            stopCameraStream();
+            document.getElementById('mediaContainer').classList.add('hidden');
+        }
+
+        currentUser = null;
+        mySoilData = []; // Clear memory
+        document.getElementById('userInfoDisplay').classList.add('hidden');
+        
+        // Return to login if in config
+        if (!document.getElementById('tab-config').classList.contains('hidden')) {
+            document.getElementById('admin-panel').classList.add('hidden');
+            document.getElementById('login-panel').classList.remove('hidden');
+        }
+    }
+
+    // --- 5. ADMIN LOGIC (UPDATED WITH PERSISTENCE) ---
+    
+    // FIX: ADDED MISSING FUNCTION
+    function switchAdminTab(subTab) {
+        // Enforce RBAC check again for safety
+        if (subTab === 'user-manage' && (!currentUser || currentUser.role !== 'admin')) {
+            alert("สิทธิ์การเข้าถึงถูกปฏิเสธ: เฉพาะ Admin เท่านั้น");
+            return;
+        }
+
+        // Hide all tabs
+        document.getElementById('admin-color-config').classList.add('hidden');
+        document.getElementById('admin-user-manage').classList.add('hidden');
+        document.getElementById('admin-change-pass').classList.add('hidden');
+        
+        // Reset styles for all menu buttons
+        ['menu-color-config', 'menu-user-manage', 'menu-change-pass'].forEach(id => {
+            const btn = document.getElementById(id);
+            if(btn) btn.className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600";
+        });
+
+        // Show selected tab
+        const targetTab = document.getElementById('admin-' + subTab);
+        if(targetTab) targetTab.classList.remove('hidden');
+        
+        // Highlight active button
+        const targetBtn = document.getElementById('menu-' + subTab);
+        if(targetBtn) targetBtn.className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow";
+    }
+
+    // 5.1 Preferences
+    function toggleBrightnessSetting(shouldSave = true) {
+        const isChecked = document.getElementById('toggleBrightness').checked;
+        const display = document.getElementById('brightnessContainer');
+        
+        if(isChecked) display.classList.remove('hidden');
+        else display.classList.add('hidden');
+
+        if(shouldSave && currentUser) {
+            myPreferences.showBrightness = isChecked;
+            saveUserData();
+        }
+    }
+
+    function toggleRealTimeSetting(shouldSave = true) {
+        const isChecked = document.getElementById('toggleRealTime').checked;
+        const statusText = document.getElementById('autoAnalyzeStatus');
+        
+        if (isChecked) {
+            statusText.innerText = "(Auto Analysis: ON)";
+            analyzeSoil();
+        } else {
+            statusText.innerText = "";
+        }
+
+        if(shouldSave && currentUser) {
+            myPreferences.useRealTimeAnalysis = isChecked;
+            saveUserData();
+        }
+    }
+
+    // 5.2 Camera Handling
+    async function populateCameraList() {
+        const select = document.getElementById('cameraSelect');
+        select.innerHTML = '<option value="">-- กล้องเริ่มต้น --</option>';
+
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            if (videoDevices.length === 0) return; 
+
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`; 
+                // Restore selection
+                if(device.deviceId === myPreferences.selectedCameraId) option.selected = true;
+                select.appendChild(option);
+            });
+        } catch (err) {
+            console.error("Camera List Error", err);
+        }
+    }
+
+    function updateCameraSelection() {
+        const val = document.getElementById('cameraSelect').value;
+        if(currentUser) {
+            myPreferences.selectedCameraId = val;
+            saveUserData();
+        }
+        
+        if(isCameraActive) {
+            stopCameraStream();
+            toggleCamera(); 
+        }
+    }
+
+    // 5.3 Soil Data Management (User Specific)
+    function renderConfigTable() {
+        const tbody = document.getElementById('configTableBody');
+        tbody.innerHTML = '';
+        // Use mySoilData (User's private data)
+        mySoilData.forEach((item, index) => {
+            const row = `
+                <tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-3 py-2 font-bold">${item.type}</td>
+                    <td class="px-3 py-2 text-xs">${item.level}</td>
+                    <td class="px-3 py-2 text-center text-red-600 font-mono text-xs">${item.r[0]}-${item.r[1]}</td>
+                    <td class="px-3 py-2 text-center text-green-600 font-mono text-xs">${item.g[0]}-${item.g[1]}</td>
+                    <td class="px-3 py-2 text-center text-blue-600 font-mono text-xs">${item.b[0]}-${item.b[1]}</td>
+                    <td class="px-3 py-2 text-center">
+                        <button onclick="removeRange(${index})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function addRange() {
+        const type = document.getElementById('newType').value;
+        const level = document.getElementById('newLevel').value;
+        const rMin = parseInt(document.getElementById('newRMin').value);
+        const rMax = parseInt(document.getElementById('newRMax').value);
+        const gMin = parseInt(document.getElementById('newGMin').value);
+        const gMax = parseInt(document.getElementById('newGMax').value);
+        const bMin = parseInt(document.getElementById('newBMin').value);
+        const bMax = parseInt(document.getElementById('newBMax').value);
+
+        if (!type || !level || isNaN(rMin)) { alert("กรุณากรอกข้อมูล"); return; }
+        
+        mySoilData.push({
+            type, level,
+            r: [rMin, rMax], g: [gMin, gMax], b: [bMin, bMax]
+        });
+        saveUserData(); // Save to user's storage
+        renderConfigTable();
+        alert("เพิ่มข้อมูลเรียบร้อย (บันทึกในบัญชีของคุณ)");
+    }
+
+    function removeRange(index) {
+        if(confirm("ลบข้อมูลนี้?")) {
+            mySoilData.splice(index, 1);
+            saveUserData();
+            renderConfigTable();
+        }
+    }
+
+    // 5.4 User Management (Admin Only)
+    function renderUserTable() {
+        if (!currentUser || currentUser.role !== 'admin') return;
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+        users.forEach((user, index) => {
+            tbody.innerHTML += `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-4 py-2 font-medium">${user.username}</td>
+                    <td class="px-4 py-2"><span class="bg-gray-200 px-2 py-0.5 rounded text-xs">${user.role}</span></td>
+                    <td class="px-4 py-2 text-right">
+                        ${user.username !== 'admin' ? 
+                            `<button onclick="deleteUser(${index})" class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-trash"></i> ลบ</button>` 
+                            : '<span class="text-gray-400 text-xs">System</span>'}
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function addUser() {
+        if (currentUser.role !== 'admin') return;
+        const u = document.getElementById('newUsername').value;
+        const p = document.getElementById('newPassword').value;
+        
+        if(u && p) {
+            if(users.some(user => user.username === u)) { alert('Username ซ้ำ'); return; }
+            users.push({ id: Date.now(), username: u, password: p, role: 'user' });
+            localStorage.setItem('soil_sys_users', JSON.stringify(users)); // Update Global User List
+            renderUserTable();
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            alert('เพิ่มผู้ใช้สำเร็จ');
+        } else { alert('กรุณากรอกข้อมูล'); }
+    }
+
+    function deleteUser(index) {
+        if (currentUser.role !== 'admin') return;
+        const targetUser = users[index];
+        if(confirm(`ต้องการลบผู้ใช้ ${targetUser.username} หรือไม่? ข้อมูลการตั้งค่าของเขาจะถูกลบด้วย`)) {
+            // Delete User Settings File
+            localStorage.removeItem(`soil_settings_${targetUser.username}`);
+            // Remove from list
+            users.splice(index, 1);
+            localStorage.setItem('soil_sys_users', JSON.stringify(users));
+            renderUserTable();
+        }
+    }
+
+    function changePassword() {
+        const newP = document.getElementById('changeNewPass').value;
+        const confP = document.getElementById('changeConfirmPass').value;
+        if (newP !== confP || newP.length < 3) { alert("รหัสผ่านไม่ตรงหรือสั้นเกินไป"); return; }
+        
+        const uIndex = users.findIndex(u => u.username === currentUser.username);
+        if(uIndex !== -1) {
+            users[uIndex].password = newP;
+            localStorage.setItem('soil_sys_users', JSON.stringify(users));
+            alert("เปลี่ยนรหัสผ่านเรียบร้อย");
+            document.getElementById('changeNewPass').value = '';
+            document.getElementById('changeConfirmPass').value = '';
+        }
+    }
+
+    // --- 6. CORE LOGIC ---
+    // (Existing camera/analysis logic adapted to use myPreferences & mySoilData)
+
+    function toggleCamera() {
+        const container = document.getElementById('mediaContainer');
+        const video = document.getElementById('videoElement');
+        const img = document.getElementById('imagePreview');
+        const marker = document.getElementById('colorMarker');
+
+        if (isCameraActive) {
+            stopCameraStream();
+            container.classList.add('hidden');
+        } else {
+            container.classList.remove('hidden');
+            img.classList.add('hidden');
+            marker.style.display = 'none'; markerPosition = null;
+            
+            // Use Saved Camera ID
+            const constraints = { 
+                video: myPreferences.selectedCameraId ? { deviceId: { exact: myPreferences.selectedCameraId } } : true 
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    videoStream = stream;
+                    video.srcObject = stream;
+                    isCameraActive = true;
+                    video.onloadedmetadata = () => { drawVideoToCanvasLoop(); };
+                })
+                .catch(err => { alert("ไม่สามารถเข้าถึงกล้องได้"); });
+        }
+    }
+    
+    // ... [Reuse existing logic for stopCameraStream, drawVideoToCanvasLoop, triggerFileUpload, handleImageUpload] ...
+    function stopCameraStream() {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
+        isCameraActive = false;
+    }
+
+    function drawVideoToCanvasLoop() {
+        if (!isCameraActive) return;
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvasElement');
+        const ctx = canvas.getContext('2d');
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (canvas.width !== video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            if (markerPosition) processAreaColor(canvas, markerPosition.x, markerPosition.y);
+        }
+        requestAnimationFrame(drawVideoToCanvasLoop);
+    }
+
+    function triggerFileUpload() { document.getElementById('fileInput').click(); }
+    
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (isCameraActive) toggleCamera();
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById('imagePreview');
+            img.src = e.target.result;
+            document.getElementById('mediaContainer').classList.remove('hidden');
+            img.classList.remove('hidden');
+            document.getElementById('colorMarker').style.display = 'none';
+            markerPosition = null;
+            img.onload = function() {
+                const canvas = document.getElementById('canvasElement');
+                canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function handleMediaClick(event) {
+        const container = event.currentTarget;
+        const rect = container.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+
+        const marker = document.getElementById('colorMarker');
+        marker.style.display = 'block';
+        marker.style.left = clickX + 'px'; marker.style.top = clickY + 'px';
+
+        markerPosition = { x: event.clientX, y: event.clientY, containerRect: rect };
+        if (!isCameraActive) {
+            processAreaColor(document.getElementById('canvasElement'), event.clientX, event.clientY);
+        }
+    }
+
+    function processAreaColor(canvas, clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const startX = Math.floor(((clientX - rect.left) * scaleX) - (MARKER_SIZE/2));
+        const startY = Math.floor(((clientY - rect.top) * scaleY) - (MARKER_SIZE/2));
+        const ctx = canvas.getContext('2d');
+        try {
+            const data = ctx.getImageData(startX, startY, MARKER_SIZE, MARKER_SIZE).data;
+            let r=0, g=0, b=0, c=0;
+            for(let i=0; i<data.length; i+=4) { r+=data[i]; g+=data[i+1]; b+=data[i+2]; c++; }
+            if(c>0) {
+                const avgR=Math.round(r/c), avgG=Math.round(g/c), avgB=Math.round(b/c);
+                document.getElementById('inputR').value = avgR;
+                document.getElementById('inputG').value = avgG;
+                document.getElementById('inputB').value = avgB;
+                document.getElementById('valBrightness').innerText = Math.round((avgR*299 + avgG*587 + avgB*114)/1000);
+                updateInputDisplay();
+            }
+        } catch(e) {}
+    }
+
+    function updateInputDisplay() {
+        const r = document.getElementById('inputR').value;
+        const g = document.getElementById('inputG').value;
+        const b = document.getElementById('inputB').value;
+        document.getElementById('valR').innerText = r;
+        document.getElementById('valG').innerText = g;
+        document.getElementById('valB').innerText = b;
+        document.getElementById('colorPreview').style.backgroundColor = `rgb(${r},${g},${b})`;
+        if (myPreferences.useRealTimeAnalysis) analyzeSoil();
+    }
+
+    function analyzeSoil() {
+        const r = parseInt(document.getElementById('inputR').value);
+        const g = parseInt(document.getElementById('inputG').value);
+        const b = parseInt(document.getElementById('inputB').value);
+        const type = document.getElementById('testType').value;
+        const candidates = mySoilData.filter(d => d.type === type); // USE MY DATA
+        
+        let match = null;
+        let closestMatch = null;
+        let minDistance = Infinity;
+
+        for (let item of candidates) {
+            if (r >= item.r[0] && r <= item.r[1] && g >= item.g[0] && g <= item.g[1] && b >= item.b[0] && b <= item.b[1]) {
+                match = item; break;
+            }
+            const cR=(item.r[0]+item.r[1])/2, cG=(item.g[0]+item.g[1])/2, cB=(item.b[0]+item.b[1])/2;
+            const dist = Math.sqrt(Math.pow(r-cR,2) + Math.pow(g-cG,2) + Math.pow(b-cB,2));
+            if(dist < minDistance) { minDistance = dist; closestMatch = item; }
+        }
+
+        const resTxt = document.getElementById('resultText');
+        const resDesc = document.getElementById('resultDesc');
+        if (match) {
+            resTxt.innerText = match.level;
+            resTxt.className = "text-4xl md:text-6xl font-extrabold text-emerald-600";
+            resDesc.innerText = `ผลการวิเคราะห์: ${match.type} อยู่ในระดับนี้ (ตรงตามค่าสี)`;
+        } else if (closestMatch && minDistance < 80) {
+            resTxt.innerText = closestMatch.level + "*";
+            resTxt.className = "text-4xl md:text-6xl font-extrabold text-yellow-600";
+            resDesc.innerText = `ค่าใกล้เคียงที่สุด (ประมาณการ)`;
+        } else {
+            resTxt.innerText = "ไม่พบข้อมูล";
+            resTxt.className = "text-4xl md:text-6xl font-extrabold text-gray-400";
+            resDesc.innerText = "สีที่วัดได้ อยู่นอกเหนือช่วงข้อมูล";
+        }
+    }
+
+    function switchTab(tabName) {
+        if(tabName === 'config' && !currentUser) {
+            document.getElementById('tab-analyze').classList.add('hidden');
+            document.getElementById('tab-config').classList.remove('hidden');
+            document.getElementById('login-panel').classList.remove('hidden');
+            document.getElementById('admin-panel').classList.add('hidden');
+        } else if (tabName === 'config' && currentUser) {
+            document.getElementById('tab-analyze').classList.add('hidden');
+            document.getElementById('tab-config').classList.remove('hidden');
+            document.getElementById('login-panel').classList.add('hidden');
+            document.getElementById('admin-panel').classList.remove('hidden');
+            renderConfigTable(); // Refresh view
+        } else {
+            document.getElementById('tab-analyze').classList.remove('hidden');
+            document.getElementById('tab-config').classList.add('hidden');
+        }
+        
+        // Update Button Styles
+        ['analyze', 'config'].forEach(t => {
+            const btn = document.getElementById('btn-'+t);
+            if(t===tabName) btn.className="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition";
+            else btn.className="flex-1 py-3 text-gray-500 hover:text-emerald-500 font-medium focus:outline-none transition";
+        });
+    }
+
+    updateInputDisplay();
+</script>
+</body>
+</html>
