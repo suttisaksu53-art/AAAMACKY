@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>โปรแกรมวิเคราะห์ดินเทียบสีดิจิทัล (Multi-User Edition)</title>
+    <title>โปรแกรมเทียบค่าสีชุดตรวจดิน (Multi-User Edition)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -27,19 +27,85 @@
             display: none;
         }
         .cursor-crosshair { cursor: crosshair; }
+        
+        /* Design Text Gradient */
+        .credit-text {
+            background: linear-gradient(to right, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen p-2 md:p-8">
+<body class="bg-gray-50 min-h-screen p-2 md:p-8 flex flex-col">
 
-    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden w-full flex-grow">
         
         <!-- Header -->
-        <div class="bg-emerald-600 p-6 text-white text-center relative">
-            <h1 class="text-2xl md:text-3xl font-bold">🌱 Soil Color Analyzer Pro</h1>
-            <p class="mt-2 opacity-90">โปรแกรมเทียบค่าสี RGB เพื่อวิเคราะห์ธาตุอาหารดิน</p>
-            <div id="userInfoDisplay" class="absolute top-4 right-4 text-sm hidden">
-                <span id="loggedInUser" class="font-bold mr-2"></span>
-                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs transition">Logout</button>
+        <div class="bg-emerald-600 p-6 text-white relative overflow-hidden">
+            <!-- Background Decoration -->
+            <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="1"/>
+                    </pattern>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                </svg>
+            </div>
+
+            <!-- Header Content Container -->
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6 relative z-10">
+                
+                <!-- Natural Tree Logo (Left Side) -->
+                <div class="flex-shrink-0">
+                    <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-xl hover:scale-105 transition-transform duration-300">
+                        <!-- Background Circle -->
+                        <circle cx="50" cy="50" r="48" fill="white" fill-opacity="0.95"/>
+                        <circle cx="50" cy="50" r="45" stroke="#10B981" stroke-width="2" stroke-dasharray="8 4" stroke-opacity="0.5"/>
+                        
+                        <!-- Soil Base -->
+                        <path d="M20 75C20 75 35 65 50 65C65 65 80 75 80 75V85C80 85 65 90 50 90C35 90 20 85 20 85V75Z" fill="#8B4513"/>
+                        
+                        <!-- Main Stem -->
+                        <path d="M50 65V40" stroke="#A0522D" stroke-width="4" stroke-linecap="round"/>
+                        
+                        <!-- Leaf Left -->
+                        <path d="M50 50C50 50 30 45 30 30C30 30 40 30 50 50Z" fill="#4ADE80"/>
+                        <path d="M50 50C50 50 30 45 30 30C30 30 40 30 50 50Z" stroke="#16A34A" stroke-width="1"/>
+                        
+                        <!-- Leaf Right -->
+                        <path d="M50 45C50 45 75 35 75 20C75 20 60 25 50 45Z" fill="#22C55E"/>
+                        <path d="M50 45C50 45 75 35 75 20C75 20 60 25 50 45Z" stroke="#15803D" stroke-width="1"/>
+                        
+                        <!-- Top Leaf -->
+                        <path d="M50 40C50 40 50 15 35 25C35 25 45 30 50 40Z" fill="#86EFAC"/>
+                        
+                        <!-- Decorative Circles (Spores/Life) -->
+                        <circle cx="30" cy="30" r="2" fill="#FBBF24"/>
+                        <circle cx="70" cy="25" r="2" fill="#FBBF24"/>
+                        <circle cx="50" cy="15" r="2" fill="#FBBF24"/>
+                    </svg>
+                </div>
+                
+                <!-- Text Content (Right of Logo) -->
+                <div class="text-center md:text-left">
+                    <h1 class="text-3xl md:text-4xl font-bold tracking-wide text-white drop-shadow-md">
+                        Soil Color Chart Analyzer Pro
+                    </h1>
+                    <p class="mt-2 text-emerald-100 font-light text-lg">
+                        <i class="fas fa-flask mr-2"></i>โปรแกรมเทียบค่าสีชุดตรวจดิน
+                    </p>
+                </div>
+
+            </div>
+            
+            <!-- User Info (Top Right) -->
+            <div id="userInfoDisplay" class="absolute top-4 right-4 text-sm hidden z-20">
+                <span id="loggedInUser" class="font-bold mr-2 bg-emerald-700 px-3 py-1 rounded-full bg-opacity-50"></span>
+                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs transition shadow-md font-bold">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
             </div>
         </div>
 
@@ -68,6 +134,7 @@
                                 <option value="Nitrate">Nitrate (NO3) - ไนเตรท</option>
                                 <option value="P">Phosphorus (P) - ฟอสฟอรัส</option>
                                 <option value="K">Potassium (K) - โพแทสเซียม</option>
+                                <option value="Soil Respiration">Soil Respiration - การหายใจของดิน</option>
                                 <option value="pH">pH - ความเป็นกรดด่าง</option>
                             </select>
                         </div>
@@ -78,7 +145,7 @@
                             
                             <div class="flex gap-2 mb-4">
                                 <button onclick="toggleCamera()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded shadow text-sm">
-                                    <i class="fas fa-camera mr-1"></i> ใช้กล้อง Webcam
+                                    <i class="fas fa-camera mr-1"></i> เปิด/ปิด กล้อง
                                 </button>
                                 <button onclick="triggerFileUpload()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded shadow text-sm">
                                     <i class="fas fa-image mr-1"></i> อัปโหลดรูป
@@ -89,6 +156,12 @@
                             <!-- Camera/Image Preview Area -->
                             <div id="mediaContainer" class="relative w-full h-64 bg-black rounded-lg overflow-hidden hidden cursor-crosshair group" 
                                  onclick="handleMediaClick(event)">
+                                
+                                <!-- Flip Camera Button -->
+                                <button onclick="switchCamera(event)" id="btnFlipCamera" class="absolute top-2 right-2 bg-white/80 hover:bg-white text-gray-800 p-3 rounded-full shadow-lg z-30 transition transform active:scale-95 hidden">
+                                    <i class="fas fa-sync-alt fa-lg text-emerald-600"></i>
+                                </button>
+
                                 <video id="videoElement" autoplay playsinline class="absolute top-0 left-0 w-full h-full object-contain hidden opacity-0"></video>
                                 <img id="imagePreview" class="absolute top-0 left-0 w-full h-full object-contain hidden opacity-0" />
                                 <canvas id="canvasElement" class="absolute top-0 left-0 w-full h-full"></canvas>
@@ -143,7 +216,8 @@
                             </div>
                         </div>
 
-                        <button onclick="analyzeSoil()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition transform active:scale-95">
+                        <!-- (2) ปุ่มประมวลผล (ซ่อนถ้า Realtime ON) -->
+                        <button id="btnManualAnalyze" onclick="analyzeSoil()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition transform active:scale-95 hidden">
                             ประมวลผลวิเคราะห์
                         </button>
                         <p class="text-center text-xs text-gray-400 mt-2" id="autoAnalyzeStatus"></p>
@@ -170,12 +244,11 @@
                             <i class="fas fa-user-lock text-2xl"></i>
                         </div>
                         <h2 class="text-xl font-bold text-gray-800">เข้าสู่ระบบ</h2>
-                        <p class="text-xs text-gray-500">Default: admin / admin123</p>
                     </div>
                     <form onsubmit="handleLogin(event)">
                         <div class="mb-4">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Username</label>
-                            <input type="text" id="username" class="w-full px-3 py-2 border rounded focus:outline-none focus:border-emerald-500" placeholder="admin" required>
+                            <input type="text" id="username" class="w-full px-3 py-2 border rounded focus:outline-none focus:border-emerald-500" placeholder="Username" required>
                         </div>
                         <div class="mb-6">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Password</label>
@@ -226,15 +299,16 @@
                                     </div>
 
                                     <div class="mt-3 border-t border-yellow-200 pt-3">
-                                        <label class="block text-gray-700 font-medium mb-1 text-sm"><i class="fas fa-video mr-1"></i> เลือกกล้อง</label>
+                                        <label class="block text-gray-700 font-medium mb-1 text-sm"><i class="fas fa-video mr-1"></i> เลือกกล้อง (Admin Preset)</label>
                                         <div class="flex gap-2">
                                             <select id="cameraSelect" class="flex-1 p-2 border rounded text-sm bg-white" onchange="updateCameraSelection()">
-                                                <option value="">-- กล้องเริ่มต้น --</option>
+                                                <option value="">-- อัตโนมัติ (Default) --</option>
                                             </select>
                                             <button onclick="populateCameraList()" class="bg-yellow-500 text-white px-3 py-1 rounded text-xs hover:bg-yellow-600 transition" title="Refresh">
                                                 <i class="fas fa-sync"></i>
                                             </button>
                                         </div>
+                                        <p class="text-xs text-gray-500 mt-1">* บนมือถือ แนะนำให้ใช้ปุ่มสลับกล้องที่หน้าหลักจะสะดวกกว่า</p>
                                     </div>
                                 </div>
 
@@ -321,6 +395,13 @@
         </div>
     </div>
 
+    <!-- (3) เครดิตด้านล่าง -->
+    <div class="text-center mt-4">
+        <p class="text-xs font-mono credit-text opacity-70 hover:opacity-100 transition duration-300">
+            ✨ Design by AAAmacky
+        </p>
+    </div>
+
 <script>
     // --- 1. DEFAULT CONSTANTS (Templates) ---
     const DEFAULT_USERS = [
@@ -340,29 +421,32 @@
         { type: 'P', level: 'สูง (High)',  r: [0, 99],    g: [0, 99],    b: [150, 255] },
         { type: 'K', level: 'ต่ำ (Low)',   r: [240, 255], g: [240, 255], b: [200, 240] },
         { type: 'K', level: 'สูง (High)',  r: [200, 230], g: [200, 230], b: [100, 180] },
+        { type: 'Soil Respiration', level: 'ต่ำ (Low)', r: [200, 220], g: [200, 220], b: [200, 220] }, 
+        { type: 'Soil Respiration', level: 'ปานกลาง (Medium)', r: [150, 180], g: [150, 180], b: [150, 180] },
+        { type: 'Soil Respiration', level: 'สูง (High)', r: [100, 130], g: [100, 130], b: [100, 130] },
     ];
 
     // --- 2. GLOBAL STATE ---
-    let users = []; // List of all users
+    let users = []; 
     let currentUser = null;
     
-    // User-Specific Data (Loaded after login)
+    // (2) ค่าเริ่มต้น: Real-time = true
     let mySoilData = []; 
     let myPreferences = {
         showBrightness: false,
-        useRealTimeAnalysis: false,
+        useRealTimeAnalysis: true, 
         selectedCameraId: ''
     };
 
     // Camera/Image State
     let videoStream = null;
     let isCameraActive = false;
+    let currentFacingMode = 'environment';
     const MARKER_SIZE = 30;
     let markerPosition = null; 
 
     // --- 3. STORAGE MANAGER ---
 
-    // 3.1 Load "Users" List (Global)
     function loadUsersList() {
         const storedUsers = localStorage.getItem('soil_sys_users');
         if (storedUsers) {
@@ -373,7 +457,6 @@
         }
     }
 
-    // 3.2 Load Data SPECIFIC to Current User
     function loadUserData(username) {
         const storageKey = `soil_settings_${username}`;
         const storedData = localStorage.getItem(storageKey);
@@ -383,14 +466,11 @@
             mySoilData = parsed.soilData || [];
             myPreferences = parsed.preferences || myPreferences;
         } else {
-            // First time user: Copy default templates
             mySoilData = JSON.parse(JSON.stringify(DEFAULT_SOIL_DATA));
-            // Default preferences already set in variable declaration
-            saveUserData(); // Create the file
+            saveUserData();
         }
     }
 
-    // 3.3 Save Data SPECIFIC to Current User
     function saveUserData() {
         if (!currentUser) return;
         const storageKey = `soil_settings_${currentUser.username}`;
@@ -401,7 +481,6 @@
         localStorage.setItem(storageKey, JSON.stringify(payload));
     }
 
-    // Initialize System
     loadUsersList();
 
     // --- 4. AUTH & LOGIN ---
@@ -411,7 +490,7 @@
         const u = document.getElementById('username').value;
         const p = document.getElementById('password').value;
         
-        loadUsersList(); // Reload to ensure fresh data
+        loadUsersList(); 
         const foundUser = users.find(user => user.username === u && user.password === p);
         
         if (foundUser) {
@@ -423,15 +502,13 @@
 
     function performLogin(user) {
         currentUser = user;
-        loadUserData(user.username); // <--- LOAD USER SPECIFIC DATA HERE
+        loadUserData(user.username); 
 
-        // UI Setup
         document.getElementById('login-panel').classList.add('hidden');
         document.getElementById('admin-panel').classList.remove('hidden');
         document.getElementById('userInfoDisplay').classList.remove('hidden');
         document.getElementById('loggedInUser').innerText = `👤 ${user.username} (${user.role})`;
         
-        // RBAC: Show/Hide User Management
         const userManageBtn = document.getElementById('menu-user-manage');
         if (user.role === 'admin') {
             userManageBtn.classList.remove('hidden');
@@ -441,14 +518,12 @@
 
         // Apply Preferences
         document.getElementById('toggleBrightness').checked = myPreferences.showBrightness;
-        toggleBrightnessSetting(false); // Update UI without saving again
+        toggleBrightnessSetting(false); 
 
         document.getElementById('toggleRealTime').checked = myPreferences.useRealTimeAnalysis;
         toggleRealTimeSetting(false);
 
-        // Attempt to select last used camera
         populateCameraList();
-
         renderConfigTable();
         renderUserTable();
         document.getElementById('username').value = '';
@@ -457,54 +532,45 @@
     }
 
     function logout() {
-        // Stop camera if active
         if(isCameraActive) {
             stopCameraStream();
             document.getElementById('mediaContainer').classList.add('hidden');
         }
 
         currentUser = null;
-        mySoilData = []; // Clear memory
+        mySoilData = []; 
         document.getElementById('userInfoDisplay').classList.add('hidden');
         
-        // Return to login if in config
         if (!document.getElementById('tab-config').classList.contains('hidden')) {
             document.getElementById('admin-panel').classList.add('hidden');
             document.getElementById('login-panel').classList.remove('hidden');
         }
     }
 
-    // --- 5. ADMIN LOGIC (UPDATED WITH PERSISTENCE) ---
+    // --- 5. ADMIN LOGIC ---
     
-    // FIX: ADDED MISSING FUNCTION
     function switchAdminTab(subTab) {
-        // Enforce RBAC check again for safety
         if (subTab === 'user-manage' && (!currentUser || currentUser.role !== 'admin')) {
             alert("สิทธิ์การเข้าถึงถูกปฏิเสธ: เฉพาะ Admin เท่านั้น");
             return;
         }
 
-        // Hide all tabs
         document.getElementById('admin-color-config').classList.add('hidden');
         document.getElementById('admin-user-manage').classList.add('hidden');
         document.getElementById('admin-change-pass').classList.add('hidden');
         
-        // Reset styles for all menu buttons
         ['menu-color-config', 'menu-user-manage', 'menu-change-pass'].forEach(id => {
             const btn = document.getElementById(id);
             if(btn) btn.className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600";
         });
 
-        // Show selected tab
         const targetTab = document.getElementById('admin-' + subTab);
         if(targetTab) targetTab.classList.remove('hidden');
         
-        // Highlight active button
         const targetBtn = document.getElementById('menu-' + subTab);
         if(targetBtn) targetBtn.className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow";
     }
 
-    // 5.1 Preferences
     function toggleBrightnessSetting(shouldSave = true) {
         const isChecked = document.getElementById('toggleBrightness').checked;
         const display = document.getElementById('brightnessContainer');
@@ -518,44 +584,51 @@
         }
     }
 
-    function toggleRealTimeSetting(shouldSave = true) {
-        const isChecked = document.getElementById('toggleRealTime').checked;
-        const statusText = document.getElementById('autoAnalyzeStatus');
+    // (2) Logic ปุ่มประมวลผล: ซ่อนถ้า Realtime ON
+    function updateInterfaceState() {
+        const btn = document.getElementById('btnManualAnalyze');
+        const statusTxt = document.getElementById('autoAnalyzeStatus');
         
-        if (isChecked) {
-            statusText.innerText = "(Auto Analysis: ON)";
-            analyzeSoil();
+        if (myPreferences.useRealTimeAnalysis) {
+            btn.classList.add('hidden'); // ซ่อนปุ่ม
+            statusTxt.innerText = "(Auto Analysis: ON)";
+            analyzeSoil(); // เรียกวิเคราะห์ทันที
         } else {
-            statusText.innerText = "";
-        }
-
-        if(shouldSave && currentUser) {
-            myPreferences.useRealTimeAnalysis = isChecked;
-            saveUserData();
+            btn.classList.remove('hidden'); // โชว์ปุ่ม
+            statusTxt.innerText = "";
         }
     }
 
-    // 5.2 Camera Handling
+    function toggleRealTimeSetting(shouldSave = true) {
+        const isChecked = document.getElementById('toggleRealTime').checked;
+        
+        if(shouldSave && currentUser) {
+            myPreferences.useRealTimeAnalysis = isChecked;
+            saveUserData();
+        } else if (!currentUser) {
+             myPreferences.useRealTimeAnalysis = isChecked;
+        }
+        
+        updateInterfaceState();
+    }
+
+    // ... (Camera, Image, Analyze functions unchanged except analyze logic calls) ...
+
     async function populateCameraList() {
         const select = document.getElementById('cameraSelect');
-        select.innerHTML = '<option value="">-- กล้องเริ่มต้น --</option>';
-
+        select.innerHTML = '<option value="">-- อัตโนมัติ (Default) --</option>';
         try {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             if (videoDevices.length === 0) return; 
-
             videoDevices.forEach((device, index) => {
                 const option = document.createElement('option');
                 option.value = device.deviceId;
                 option.text = device.label || `Camera ${index + 1}`; 
-                // Restore selection
                 if(device.deviceId === myPreferences.selectedCameraId) option.selected = true;
                 select.appendChild(option);
             });
-        } catch (err) {
-            console.error("Camera List Error", err);
-        }
+        } catch (err) { console.error("Camera List Error", err); }
     }
 
     function updateCameraSelection() {
@@ -564,18 +637,15 @@
             myPreferences.selectedCameraId = val;
             saveUserData();
         }
-        
         if(isCameraActive) {
             stopCameraStream();
             toggleCamera(); 
         }
     }
 
-    // 5.3 Soil Data Management (User Specific)
     function renderConfigTable() {
         const tbody = document.getElementById('configTableBody');
         tbody.innerHTML = '';
-        // Use mySoilData (User's private data)
         mySoilData.forEach((item, index) => {
             const row = `
                 <tr class="bg-white border-b hover:bg-gray-50">
@@ -602,14 +672,9 @@
         const gMax = parseInt(document.getElementById('newGMax').value);
         const bMin = parseInt(document.getElementById('newBMin').value);
         const bMax = parseInt(document.getElementById('newBMax').value);
-
         if (!type || !level || isNaN(rMin)) { alert("กรุณากรอกข้อมูล"); return; }
-        
-        mySoilData.push({
-            type, level,
-            r: [rMin, rMax], g: [gMin, gMax], b: [bMin, bMax]
-        });
-        saveUserData(); // Save to user's storage
+        mySoilData.push({ type, level, r: [rMin, rMax], g: [gMin, gMax], b: [bMin, bMax] });
+        saveUserData(); 
         renderConfigTable();
         alert("เพิ่มข้อมูลเรียบร้อย (บันทึกในบัญชีของคุณ)");
     }
@@ -622,7 +687,6 @@
         }
     }
 
-    // 5.4 User Management (Admin Only)
     function renderUserTable() {
         if (!currentUser || currentUser.role !== 'admin') return;
         const tbody = document.getElementById('userTableBody');
@@ -646,11 +710,10 @@
         if (currentUser.role !== 'admin') return;
         const u = document.getElementById('newUsername').value;
         const p = document.getElementById('newPassword').value;
-        
         if(u && p) {
             if(users.some(user => user.username === u)) { alert('Username ซ้ำ'); return; }
             users.push({ id: Date.now(), username: u, password: p, role: 'user' });
-            localStorage.setItem('soil_sys_users', JSON.stringify(users)); // Update Global User List
+            localStorage.setItem('soil_sys_users', JSON.stringify(users)); 
             renderUserTable();
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
@@ -661,10 +724,8 @@
     function deleteUser(index) {
         if (currentUser.role !== 'admin') return;
         const targetUser = users[index];
-        if(confirm(`ต้องการลบผู้ใช้ ${targetUser.username} หรือไม่? ข้อมูลการตั้งค่าของเขาจะถูกลบด้วย`)) {
-            // Delete User Settings File
+        if(confirm(`ต้องการลบผู้ใช้ ${targetUser.username} หรือไม่?`)) {
             localStorage.removeItem(`soil_settings_${targetUser.username}`);
-            // Remove from list
             users.splice(index, 1);
             localStorage.setItem('soil_sys_users', JSON.stringify(users));
             renderUserTable();
@@ -675,7 +736,6 @@
         const newP = document.getElementById('changeNewPass').value;
         const confP = document.getElementById('changeConfirmPass').value;
         if (newP !== confP || newP.length < 3) { alert("รหัสผ่านไม่ตรงหรือสั้นเกินไป"); return; }
-        
         const uIndex = users.findIndex(u => u.username === currentUser.username);
         if(uIndex !== -1) {
             users[uIndex].password = newP;
@@ -686,27 +746,29 @@
         }
     }
 
-    // --- 6. CORE LOGIC ---
-    // (Existing camera/analysis logic adapted to use myPreferences & mySoilData)
-
     function toggleCamera() {
         const container = document.getElementById('mediaContainer');
         const video = document.getElementById('videoElement');
         const img = document.getElementById('imagePreview');
         const marker = document.getElementById('colorMarker');
+        const btnFlip = document.getElementById('btnFlipCamera');
 
         if (isCameraActive) {
             stopCameraStream();
             container.classList.add('hidden');
+            btnFlip.classList.add('hidden');
         } else {
             container.classList.remove('hidden');
             img.classList.add('hidden');
             marker.style.display = 'none'; markerPosition = null;
+            btnFlip.classList.remove('hidden'); 
             
-            // Use Saved Camera ID
-            const constraints = { 
-                video: myPreferences.selectedCameraId ? { deviceId: { exact: myPreferences.selectedCameraId } } : true 
-            };
+            let constraints = { video: true };
+            if (myPreferences.selectedCameraId) {
+                constraints.video = { deviceId: { exact: myPreferences.selectedCameraId } };
+            } else {
+                constraints.video = { facingMode: currentFacingMode };
+            }
 
             navigator.mediaDevices.getUserMedia(constraints)
                 .then(stream => {
@@ -718,8 +780,24 @@
                 .catch(err => { alert("ไม่สามารถเข้าถึงกล้องได้"); });
         }
     }
+
+    function switchCamera(event) {
+        if(event) event.stopPropagation();
+        if (!isCameraActive) return;
+        currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        stopCameraStream();
+        const video = document.getElementById('videoElement');
+        const constraints = { video: { facingMode: currentFacingMode } };
+        navigator.mediaDevices.getUserMedia(constraints)
+            .then(stream => {
+                videoStream = stream;
+                video.srcObject = stream;
+                isCameraActive = true;
+                video.onloadedmetadata = () => { drawVideoToCanvasLoop(); };
+            })
+            .catch(err => { alert("สลับกล้องไม่สำเร็จ"); });
+    }
     
-    // ... [Reuse existing logic for stopCameraStream, drawVideoToCanvasLoop, triggerFileUpload, handleImageUpload] ...
     function stopCameraStream() {
         if (videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
@@ -752,6 +830,7 @@
             const img = document.getElementById('imagePreview');
             img.src = e.target.result;
             document.getElementById('mediaContainer').classList.remove('hidden');
+            document.getElementById('btnFlipCamera').classList.add('hidden'); 
             img.classList.remove('hidden');
             document.getElementById('colorMarker').style.display = 'none';
             markerPosition = null;
@@ -765,15 +844,14 @@
     }
 
     function handleMediaClick(event) {
+        if(event.target.closest('button')) return;
         const container = event.currentTarget;
         const rect = container.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
-
         const marker = document.getElementById('colorMarker');
         marker.style.display = 'block';
         marker.style.left = clickX + 'px'; marker.style.top = clickY + 'px';
-
         markerPosition = { x: event.clientX, y: event.clientY, containerRect: rect };
         if (!isCameraActive) {
             processAreaColor(document.getElementById('canvasElement'), event.clientX, event.clientY);
@@ -818,7 +896,7 @@
         const g = parseInt(document.getElementById('inputG').value);
         const b = parseInt(document.getElementById('inputB').value);
         const type = document.getElementById('testType').value;
-        const candidates = mySoilData.filter(d => d.type === type); // USE MY DATA
+        const candidates = mySoilData.filter(d => d.type === type); 
         
         let match = null;
         let closestMatch = null;
@@ -861,13 +939,11 @@
             document.getElementById('tab-config').classList.remove('hidden');
             document.getElementById('login-panel').classList.add('hidden');
             document.getElementById('admin-panel').classList.remove('hidden');
-            renderConfigTable(); // Refresh view
+            renderConfigTable(); 
         } else {
             document.getElementById('tab-analyze').classList.remove('hidden');
             document.getElementById('tab-config').classList.add('hidden');
         }
-        
-        // Update Button Styles
         ['analyze', 'config'].forEach(t => {
             const btn = document.getElementById('btn-'+t);
             if(t===tabName) btn.className="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition";
@@ -875,6 +951,7 @@
         });
     }
 
+    updateInterfaceState(); // Initial call to set button state based on default preference
     updateInputDisplay();
 </script>
 </body>
