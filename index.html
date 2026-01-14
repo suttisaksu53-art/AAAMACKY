@@ -663,6 +663,37 @@
         requestAnimationFrame(drawVideoToCanvasLoop);
     }
 
+    function triggerFileUpload() { document.getElementById('fileInput').click(); }
+    
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Stop camera if active to switch to image mode
+        if (isCameraActive) toggleCamera(); 
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById('imagePreview');
+            img.src = e.target.result;
+            
+            // Show media container
+            document.getElementById('mediaContainer').classList.remove('hidden');
+            document.getElementById('btnFlipCamera').classList.add('hidden'); // Hide flip button for static images
+            img.classList.remove('hidden');
+            document.getElementById('colorMarker').style.display = 'none';
+            markerPosition = null;
+
+            img.onload = function() {
+                const canvas = document.getElementById('canvasElement');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
     function handleMediaClick(e) {
         if(e.target.closest('button')) return;
         const rect = e.currentTarget.getBoundingClientRect();
