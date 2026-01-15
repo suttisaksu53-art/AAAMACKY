@@ -50,7 +50,7 @@
             <i class="fas fa-times fa-2x"></i>
         </button>
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-emerald-600 mb-4"></div>
-        <p id="loadingText" class="text-emerald-700 font-bold">กำลังประมวลผล...</p>
+        <p id="loadingText" class="text-emerald-700 font-bold">กำลังเชื่อมต่อฐานข้อมูล...</p>
         <p class="text-xs text-gray-400 mt-2">(หากค้างนานเกินไป กด X มุมขวาบน)</p>
     </div>
 
@@ -91,8 +91,9 @@
                     <p class="mt-2 text-emerald-100 font-light text-lg">
                         <i class="fas fa-flask mr-2"></i>โปรแกรมเทียบค่าสีชุดตรวจดิน
                     </p>
-                    <div id="dbStatus" class="text-xs text-yellow-200 mt-1 cursor-pointer hover:underline" onclick="switchTab('config')">
-                        <i class="fas fa-database"></i> โหมด: Offline (คลิกเพื่อเชื่อมต่อ Cloud)
+                    <!-- Status Indicator (Always Online now) -->
+                    <div id="dbStatus" class="text-xs text-yellow-200 mt-1">
+                         <i class="fas fa-database"></i> กำลังเชื่อมต่อ...
                     </div>
                 </div>
             </div>
@@ -207,25 +208,20 @@
                                 <button onclick="switchAdminTab('color-config')" id="menu-color-config" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow"><i class="fas fa-palette w-6"></i> ตั้งค่าสี</button>
                                 <button onclick="switchAdminTab('user-manage')" id="menu-user-manage" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-users-cog w-6"></i> จัดการผู้ใช้</button>
                                 <button onclick="switchAdminTab('change-pass')" id="menu-change-pass" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-key w-6"></i> เปลี่ยนรหัสผ่าน</button>
-                                <button onclick="switchAdminTab('system-setup')" id="menu-system-setup" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-database w-6"></i> เชื่อมต่อ Cloud</button>
+                                <button onclick="switchAdminTab('system-status')" id="menu-system-status" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-server w-6"></i> สถานะระบบ</button>
                             </div>
                         </div>
                         <div class="w-full md:w-3/4 bg-white border rounded-lg p-6">
-                            <!-- Cloud Setup -->
-                            <div id="admin-system-setup" class="hidden">
-                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">เชื่อมต่อ Google Sheets</h3>
-                                <div class="bg-blue-50 p-4 rounded text-sm text-blue-800 mb-4">
-                                    <p><strong>คำแนะนำ:</strong> <br>1. นำ URL ของ Web App มาใส่ <br>2. กดปุ่มบันทึก <br>3. กดปุ่ม "ทดสอบบันทึกข้อมูล" เพื่อตรวจสอบการเชื่อมต่อ</p>
-                                </div>
-                                <div class="mb-4">
-                                    <label class="block text-gray-700 text-sm font-bold mb-2">Web App URL</label>
-                                    <input type="text" id="sheetUrlInput" class="w-full px-3 py-2 border rounded text-sm" placeholder="https://script.google.com/macros/s/..../exec">
+                            <!-- Cloud Status (Previously Setup) -->
+                            <div id="admin-system-status" class="hidden">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">สถานะระบบ Cloud</h3>
+                                <div class="bg-emerald-50 p-4 rounded text-sm text-emerald-800 mb-4 border border-emerald-200">
+                                    <p class="font-bold"><i class="fas fa-wifi"></i> ระบบเชื่อมต่อกับฐานข้อมูลอัตโนมัติแล้ว</p>
+                                    <p class="mt-2 text-xs opacity-75">URL: ...Script.google.com.../exec</p>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button onclick="saveSheetUrl()" class="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700">บันทึก URL</button>
-                                    <button onclick="forceSyncData()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"><i class="fas fa-sync"></i> ทดสอบบันทึกข้อมูล</button>
+                                    <button onclick="forceSyncData()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"><i class="fas fa-sync"></i> บังคับ Sync ข้อมูลเดี๋ยวนี้</button>
                                 </div>
-                                <button onclick="clearSheetUrl()" class="text-red-500 mt-4 underline text-xs block">ยกเลิกการเชื่อมต่อ</button>
                             </div>
 
                             <!-- Color Config -->
@@ -275,32 +271,43 @@
 
 <script>
     // --- STORAGE ENGINE ---
+    // Hardcoded URL as requested
+    const HARDCODED_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxSscpgNcVG9vAvwH6Ccw44AQbh6LtE9Pwp7dfBIw35OeG4SZfTYg3vqmqCS3eCQYRJ/exec';
+
     const StorageEngine = {
-        sheetUrl: localStorage.getItem('soil_sheet_url') || '',
+        sheetUrl: HARDCODED_SHEET_URL,
+        
         async get(key) {
-            if (this.sheetUrl) {
-                try {
-                    const response = await fetch(`${this.sheetUrl}?action=read&key=${key}&t=${new Date().getTime()}`);
-                    const result = await response.json();
-                    if(result.status === 'success') {
-                        return result.data ? JSON.stringify(result.data) : null;
-                    }
-                } catch(e) { console.error("Cloud Read Error", e); }
-            } 
+            try {
+                // Fetch from cloud always for primary source
+                const response = await fetch(`${this.sheetUrl}?action=read&key=${key}&t=${new Date().getTime()}`);
+                const result = await response.json();
+                if(result.status === 'success') {
+                    // Update local storage cache
+                    if(result.data) localStorage.setItem(key, JSON.stringify(result.data));
+                    return result.data ? JSON.stringify(result.data) : null;
+                }
+            } catch(e) { 
+                console.error("Cloud Read Error", e);
+                // Fallback to local storage if offline
+                return localStorage.getItem(key);
+            }
             return localStorage.getItem(key);
         },
+
         async set(key, value) {
+            // Update local storage first for speed
             localStorage.setItem(key, value);
-            if (this.sheetUrl) {
-                try {
-                    await fetch(`${this.sheetUrl}?action=write&key=${key}`, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'text/plain' },
-                        body: value
-                    });
-                } catch(e) { console.error("Cloud Write Error", e); }
-            }
+            
+            // Sync to cloud
+            try {
+                await fetch(`${this.sheetUrl}?action=write&key=${key}`, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: value
+                });
+            } catch(e) { console.error("Cloud Write Error", e); }
         }
     };
 
@@ -342,42 +349,22 @@
 
     function checkDbStatus() {
         const statusDiv = document.getElementById('dbStatus');
-        if (StorageEngine.sheetUrl) {
-            statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> โหมด: Online (Google Sheets)';
-            statusDiv.className = "text-xs text-emerald-100 mt-1 cursor-pointer hover:underline";
-        } else {
-            statusDiv.innerHTML = '<i class="fas fa-database"></i> โหมด: Offline (Device Storage)';
-            statusDiv.className = "text-xs text-yellow-200 mt-1 cursor-pointer hover:underline";
-        }
-    }
-
-    async function saveSheetUrl() {
-        const url = document.getElementById('sheetUrlInput').value.trim();
-        if(!url) return;
-        localStorage.setItem('soil_sheet_url', url);
-        StorageEngine.sheetUrl = url;
-        alert("บันทึก URL เรียบร้อย");
-        checkDbStatus();
-        if(currentUser && currentUser.role === 'admin') {
-            await StorageEngine.set('soil_sys_users', JSON.stringify(users));
-        }
+        statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> โหมด: Online (Sync Auto)';
+        statusDiv.className = "text-xs text-emerald-100 mt-1 cursor-pointer hover:underline";
     }
 
     // New Function to force sync/test
     async function forceSyncData() {
         if(!currentUser) return;
-        alert("กำลังส่งข้อมูลทดสอบไปยัง Google Sheets...");
-        await saveUserData();
-        if(currentUser.role === 'admin') await StorageEngine.set('soil_sys_users', JSON.stringify(users));
-        alert("ส่งคำสั่งบันทึกแล้ว กรุณาตรวจสอบใน Google Sheets");
-    }
-
-    function clearSheetUrl() {
-        if(confirm("ยกเลิกการเชื่อมต่อ Cloud?")) {
-            localStorage.removeItem('soil_sheet_url');
-            StorageEngine.sheetUrl = '';
-            checkDbStatus();
-            alert("กลับสู่โหมด Offline");
+        showLoading(true);
+        try {
+            await saveUserData();
+            if(currentUser.role === 'admin') await StorageEngine.set('soil_sys_users', JSON.stringify(users));
+            alert("ส่งคำสั่งบันทึกแล้ว กรุณาตรวจสอบใน Google Sheets");
+        } catch(e) {
+            alert("เกิดข้อผิดพลาดในการ Sync");
+        } finally {
+            showLoading(false);
         }
     }
 
@@ -387,7 +374,8 @@
             users = JSON.parse(storedUsers);
         } else {
             users = JSON.parse(JSON.stringify(DEFAULT_USERS));
-            if (!StorageEngine.sheetUrl) localStorage.setItem('soil_sys_users', JSON.stringify(users));
+            // First time init: save defaults to cloud
+            StorageEngine.set('soil_sys_users', JSON.stringify(users));
         }
     }
 
@@ -406,7 +394,7 @@
         } catch (e) {
             console.error(e);
         } finally {
-            showLoading(false); // ALWAYS Hide
+            showLoading(false); 
         }
     }
 
@@ -429,7 +417,7 @@
         const p = document.getElementById('password').value;
         
         showLoading(true);
-        await loadUsersList();
+        await loadUsersList(); // Fetch fresh user list
         showLoading(false);
 
         const foundUser = users.find(user => user.username === u && user.password === p);
@@ -452,7 +440,6 @@
 
         document.getElementById('toggleBrightness').checked = myPreferences.showBrightness;
         document.getElementById('toggleRealTime').checked = myPreferences.useRealTimeAnalysis;
-        document.getElementById('sheetUrlInput').value = StorageEngine.sheetUrl;
         
         toggleBrightnessSetting(false);
         toggleRealTimeSetting(false);
@@ -485,8 +472,8 @@
             alert("สิทธิ์การเข้าถึงถูกปฏิเสธ");
             return;
         }
-        const tabs = ['admin-color-config', 'admin-user-manage', 'admin-change-pass', 'admin-system-setup'];
-        const btns = ['menu-color-config', 'menu-user-manage', 'menu-change-pass', 'menu-system-setup'];
+        const tabs = ['admin-color-config', 'admin-user-manage', 'admin-change-pass', 'admin-system-status'];
+        const btns = ['menu-color-config', 'menu-user-manage', 'menu-change-pass', 'menu-system-status'];
         
         tabs.forEach(id => {
             const el = document.getElementById(id);
@@ -517,15 +504,13 @@
         
         if (myPreferences.useRealTimeAnalysis) {
             btn.classList.add('hidden'); 
-            statusTxt.innerText = ""; // Changed from "(Auto Analysis: ON)" to ""
+            statusTxt.innerText = ""; 
             analyzeSoil(); 
         } else {
             btn.classList.remove('hidden'); 
             statusTxt.innerText = "";
         }
         
-        // Sync checkbox if it exists and we're not inside toggleRealTimeSetting(true) loop essentially,
-        // but this helper sets UI based on PREFERENCE state.
         const checkbox = document.getElementById('toggleRealTime');
         if(checkbox) checkbox.checked = myPreferences.useRealTimeAnalysis;
     }
@@ -578,10 +563,8 @@
             
             const newData = [];
             
-            // Skip header (index 0), start from index 1
             for(let i = 1; i < jsonData.length; i++) {
                 const row = jsonData[i];
-                // Ensure row has enough columns (at least 8)
                 if(row.length >= 8) {
                     newData.push({
                         type: row[0].toString(),
@@ -605,7 +588,6 @@
             }
         };
         reader.readAsArrayBuffer(file);
-        // Reset input to allow re-importing same file
         event.target.value = '';
     }
 
