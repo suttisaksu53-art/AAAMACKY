@@ -111,11 +111,7 @@
 
             <!-- ANALYZE TAB -->
             <div id="tab-analyze" class="block animate-fade-in">
-                <!-- Adjusted gap-3 for mobile, lg:gap-8 for desktop -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-8">
-                    
-                    <!-- Left Column: Source & Controls -->
-                    <!-- Adjusted space-y-3 for mobile -->
                     <div class="space-y-3 lg:space-y-6">
                         <div class="bg-white border rounded-lg p-4 shadow-sm">
                             <label class="font-bold text-gray-700 mb-2 block">1. เลือกธาตุที่ต้องการตรวจ:</label>
@@ -158,10 +154,7 @@
                         <p class="text-center text-xs text-gray-400 mt-2" id="autoAnalyzeStatus"></p>
                     </div>
 
-                    <!-- Right Column: Results & Adjustments -->
-                    <!-- Adjusted space-y-2 for mobile -->
                     <div class="flex flex-col h-full space-y-2 lg:space-y-6">
-                        <!-- Result Section (Compact) -->
                         <div class="flex flex-col justify-center items-center bg-emerald-50 rounded-xl border-2 border-emerald-100 p-3 text-center shadow-sm min-h-[120px]">
                             <h3 class="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">ผลการวิเคราะห์</h3>
                             <div id="resultText" class="text-2xl md:text-5xl font-extrabold text-gray-300 animate-pulse">...</div>
@@ -245,7 +238,16 @@
                                         <div class="flex gap-2"><select id="cameraSelect" class="flex-1 p-2 border rounded text-sm bg-white" onchange="updateCameraSelection()"><option value="">-- อัตโนมัติ --</option></select><button onclick="populateCameraList()" class="bg-yellow-500 text-white px-3 py-1 rounded text-xs hover:bg-yellow-600" title="Refresh"><i class="fas fa-sync"></i></button></div>
                                     </div>
                                 </div>
-                                <h4 class="font-bold text-gray-700 mb-2">ตารางช่วงสี</h4>
+                                
+                                <div class="flex justify-between items-center mt-6 mb-2">
+                                    <h4 class="font-bold text-gray-700">ตารางช่วงสี</h4>
+                                    <div class="flex gap-2">
+                                        <button onclick="exportCSV()" class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 shadow"><i class="fas fa-file-export"></i> Export CSV</button>
+                                        <button onclick="triggerImportCSV()" class="bg-orange-500 text-white px-3 py-1 rounded text-xs hover:bg-orange-600 shadow"><i class="fas fa-file-import"></i> Import CSV</button>
+                                        <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="handleImportCSV(event)">
+                                    </div>
+                                </div>
+                                
                                 <div class="overflow-x-auto mb-6 max-h-96 overflow-y-auto border rounded"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0"><tr><th class="px-3 py-3">Type</th><th class="px-3 py-3">Level</th><th class="px-3 py-3 text-center">R</th><th class="px-3 py-3 text-center">G</th><th class="px-3 py-3 text-center">B</th><th class="px-3 py-3 text-center">Action</th></tr></thead><tbody id="configTableBody"></tbody></table></div>
                                 <div class="bg-gray-50 p-4 rounded-lg border"><h4 class="font-bold text-sm mb-2 text-gray-700">เพิ่มช่วงสีใหม่</h4><div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2"><input id="newType" type="text" placeholder="Type" class="p-2 border rounded text-sm"><input id="newLevel" type="text" placeholder="Level" class="p-2 border rounded text-sm"><input id="newRMin" type="number" placeholder="R Min" class="p-2 border rounded text-sm"><input id="newRMax" type="number" placeholder="R Max" class="p-2 border rounded text-sm"><input id="newGMin" type="number" placeholder="G Min" class="p-2 border rounded text-sm"><input id="newGMax" type="number" placeholder="G Max" class="p-2 border rounded text-sm"><input id="newBMin" type="number" placeholder="B Min" class="p-2 border rounded text-sm"><input id="newBMax" type="number" placeholder="B Max" class="p-2 border rounded text-sm"></div><button onclick="addRange()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm w-full"><i class="fas fa-plus"></i> เพิ่มข้อมูล</button></div>
                             </div>
@@ -538,6 +540,90 @@
         updateInterfaceState();
     }
 
+    // --- CSV IMPORT / EXPORT ---
+    function exportCSV() {
+        if(!mySoilData || mySoilData.length === 0) {
+            alert("ไม่มีข้อมูลที่จะส่งออก");
+            return;
+        }
+        const headers = ["Type", "Level", "R_Min", "R_Max", "G_Min", "G_Max", "B_Min", "B_Max"];
+        let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
+        
+        mySoilData.forEach(row => {
+            let r = row.r, g = row.g, b = row.b;
+            // Escape quotes in text fields
+            let type = row.type.replace(/"/g, '""');
+            let level = row.level.replace(/"/g, '""');
+            
+            let rowData = [
+                `"${type}"`, `"${level}"`, 
+                r[0], r[1], g[0], g[1], b[0], b[1]
+            ];
+            csvContent += rowData.join(",") + "\n";
+        });
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "soil_color_data.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function triggerImportCSV() {
+        document.getElementById('csvFileInput').click();
+    }
+
+    function handleImportCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n');
+            const newData = [];
+            
+            // Skip header (index 0)
+            for(let i = 1; i < lines.length; i++) {
+                if(lines[i].trim() === "") continue;
+                
+                // Regex to split by comma, ignoring commas inside quotes
+                // Reference: standard CSV parsing regex pattern
+                const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+                let cols = lines[i].split(regex);
+                
+                // Clean up quotes
+                cols = cols.map(c => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+                
+                if(cols.length >= 8) {
+                    newData.push({
+                        type: cols[0],
+                        level: cols[1],
+                        r: [parseInt(cols[2]), parseInt(cols[3])],
+                        g: [parseInt(cols[4]), parseInt(cols[5])],
+                        b: [parseInt(cols[6]), parseInt(cols[7])]
+                    });
+                }
+            }
+            
+            if(newData.length > 0) {
+                if(confirm(`พบข้อมูล ${newData.length} รายการ ต้องการนำเข้าและทับข้อมูลเดิมหรือไม่?`)) {
+                    mySoilData = newData;
+                    saveUserData(); 
+                    renderConfigTable();
+                    alert("นำเข้าข้อมูลเรียบร้อย");
+                }
+            } else {
+                alert("ไม่พบข้อมูลที่ถูกต้องในไฟล์ หรือรูปแบบไฟล์ผิด");
+            }
+        };
+        reader.readAsText(file);
+        // Reset input to allow re-importing same file if needed
+        event.target.value = '';
+    }
+
     function renderConfigTable() {
         const tbody = document.getElementById('configTableBody');
         tbody.innerHTML = '';
@@ -804,6 +890,11 @@
             document.getElementById('tab-analyze').classList.remove('hidden');
             document.getElementById('tab-config').classList.add('hidden');
         }
+        ['analyze', 'config'].forEach(t => {
+            const btn = document.getElementById('btn-'+t);
+            if(t===tabName) btn.className="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition";
+            else btn.className="flex-1 py-3 text-gray-500 hover:text-emerald-500 font-medium focus:outline-none transition";
+        });
     }
 
     // Init
