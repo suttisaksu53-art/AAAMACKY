@@ -115,9 +115,6 @@
                         <path d="M50 45C50 45 75 35 75 20C75 20 60 25 50 45Z" fill="#22C55E"/>
                         <path d="M50 45C50 45 75 35 75 20C75 20 60 25 50 45Z" stroke="#15803D" stroke-width="1"/>
                         <path d="M50 40C50 40 50 15 35 25C35 25 45 30 50 40Z" fill="#86EFAC"/>
-                        <circle cx="30" cy="30" r="2" fill="#FBBF24"/>
-                        <circle cx="70" cy="25" r="2" fill="#FBBF24"/>
-                        <circle cx="50" cy="15" r="2" fill="#FBBF24"/>
                     </svg>
                 </div>
                 <div class="text-center md:text-left">
@@ -244,24 +241,10 @@
                                 <button onclick="switchAdminTab('color-config')" id="menu-color-config" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow"><i class="fas fa-palette w-6"></i> ตั้งค่าสี</button>
                                 <button onclick="switchAdminTab('user-manage')" id="menu-user-manage" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-users-cog w-6"></i> จัดการผู้ใช้</button>
                                 <button onclick="switchAdminTab('change-pass')" id="menu-change-pass" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-key w-6"></i> เปลี่ยนรหัสผ่าน</button>
-                                <button onclick="switchAdminTab('system-status')" id="menu-system-status" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-server w-6"></i> Cloud Status</button>
                             </div>
                         </div>
                         <div class="w-full md:w-3/4 bg-white border rounded-lg p-6">
                             
-                            <!-- Cloud Status -->
-                            <div id="admin-system-status" class="hidden">
-                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">สถานะระบบ Cloud</h3>
-                                <div class="bg-emerald-50 p-4 rounded text-sm text-emerald-800 mb-4 border border-emerald-200">
-                                    <p class="font-bold"><i class="fas fa-wifi"></i> เชื่อมต่อฐานข้อมูลอัตโนมัติแล้ว</p>
-                                    <p class="text-xs mt-2 text-gray-600">URL: ...Script.google.com.../exec</p>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button onclick="forceSyncData()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"><i class="fas fa-sync"></i> ทดสอบการเชื่อมต่อ / บังคับ Sync</button>
-                                    <button onclick="resetToDefaults()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"><i class="fas fa-trash-restore"></i> รีเซ็ตข้อมูลเป็นค่าเริ่มต้น</button>
-                                </div>
-                            </div>
-
                             <!-- Color Config -->
                             <div id="admin-color-config" class="block">
                                 <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">จัดการฐานข้อมูลสี (ส่วนตัว)</h3>
@@ -415,45 +398,36 @@
         document.getElementById('reportBrightness').innerText = document.getElementById('valBrightness').innerText;
 
         // 2. Capture Image with Marker
-        // We need to draw the current video frame + marker onto a temporary canvas
         const mediaContainer = document.getElementById('mediaContainer');
         const video = document.getElementById('videoElement');
         const imgEl = document.getElementById('imagePreview');
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Determine source size
         const w = mediaContainer.offsetWidth;
         const h = mediaContainer.offsetHeight;
         canvas.width = w;
         canvas.height = h;
 
-        // Draw Video or Image
         if (!imgEl.classList.contains('hidden')) {
-             // Draw Image
              ctx.drawImage(imgEl, 0, 0, w, h); 
         } else {
-             // Draw Video Frame
              ctx.drawImage(video, 0, 0, w, h);
         }
 
-        // Draw Marker (Simple Green Box)
         if (markerPosition) {
              const marker = document.getElementById('colorMarker');
              const left = parseFloat(marker.style.left) || w/2;
              const top = parseFloat(marker.style.top) || h/2;
-             
              ctx.strokeStyle = '#00ff00';
              ctx.lineWidth = 3;
              ctx.strokeRect(left - 15, top - 15, 30, 30);
         }
         
-        // Set Image to Report
         document.getElementById('reportImage').src = canvas.toDataURL('image/jpeg');
 
-        // 3. Render HTML to PDF
         const template = document.getElementById('reportTemplate');
-        template.classList.remove('hidden'); // Show temporarily for rendering (it's off-screen)
+        template.classList.remove('hidden');
         
         try {
             const canvasReport = await html2canvas(template, { scale: 2 });
@@ -472,7 +446,7 @@
             console.error(err);
             alert("เกิดข้อผิดพลาดในการสร้าง PDF");
         } finally {
-            template.classList.add('hidden'); // Hide again
+            template.classList.add('hidden');
             showLoading(false);
         }
     }
@@ -546,18 +520,8 @@
         { type: 'Soil Respiration', level: 'ต่ำ (Low)', r: [200, 220], g: [200, 220], b: [200, 220] }, 
         { type: 'Soil Respiration', level: 'ปานกลาง (Medium)', r: [150, 180], g: [150, 180], b: [150, 180] },
         { type: 'Soil Respiration', level: 'สูง (High)', r: [100, 130], g: [100, 130], b: [100, 130] },
-        { type: 'pH', level: '8.5 (ด่างจัด)', r: [10, 70], g: [10, 70], b: [60, 140] },
-        { type: 'pH', level: '8.0 (ด่างปานกลาง)', r: [20, 90], g: [40, 110], b: [70, 160] },
-        { type: 'pH', level: '7.5 (ด่างเล็กน้อย)', r: [30, 100], g: [60, 135], b: [70, 160] },
-        { type: 'pH', level: '7.0 (เป็นกลาง)', r: [0, 60], g: [50, 120], b: [50, 120] },
-        { type: 'pH', level: '6.5 (กรดเล็กน้อย)', r: [20, 90], g: [60, 130], b: [40, 110] },
-        { type: 'pH', level: '6.0 (กรดปานกลาง)', r: [40, 110], g: [70, 140], b: [30, 100] },
-        { type: 'pH', level: '5.5 (กรดจัด)', r: [40, 110], g: [60, 130], b: [20, 85] },
-        { type: 'pH', level: '5.0 (กรดจัดมาก)', r: [60, 135], g: [70, 145], b: [10, 80] },
-        { type: 'pH', level: '4.5 (ช่วงรอยต่อ)', r: [90, 165], g: [100, 175], b: [10, 75] },
-        { type: 'pH', level: '4.0 (กรดรุนแรงมาก)', r: [120, 200], g: [110, 190], b: [0, 65] },
-        { type: 'pH', level: '3.5 (ช่วงรอยต่อ)', r: [140, 220], g: [100, 180], b: [0, 65] },
-        { type: 'pH', level: '3.0 (กรดรุนแรงมากที่สุด)', r: [130, 210], g: [80, 150], b: [0, 65] }     
+        { type: 'pH', level: '4.5 (กรดจัด)', r: [255, 255], g: [150, 180], b: [150, 180] }, 
+        { type: 'pH', level: '7.0 (กลาง)', r: [100, 150], g: [200, 250], b: [100, 150] } 
     ];
 
     // --- SYSTEM & DATA LOADING ---
@@ -565,7 +529,11 @@
         window.populateCameraList = populateCameraList; 
         await loadUsersList(); 
         
-        // Wait for DOM
+        // Load Admin data as default for Guest
+        if (!currentUser) {
+            await loadUserData('admin');
+        }
+
         setTimeout(() => {
              updateInterfaceState();
              updateInputDisplay();
@@ -623,8 +591,15 @@
         const strPayload = JSON.stringify(payload);
         
         localStorage.setItem(key, strPayload);
-        // Fire and forget
-        StorageEngine.set(key, strPayload);
+        
+        // Fire and forget, show status
+        showSyncBadge(true);
+        StorageEngine.set(key, strPayload)
+        .then(() => {
+             setTimeout(() => showSyncBadge(false), 2000);
+             showToast("บันทึก Cloud สำเร็จ");
+        })
+        .catch(() => showToast("บันทึก Cloud ล้มเหลว", "error"));
     }
     
     async function saveSystemUsers() {
@@ -639,7 +614,8 @@
         const overlay = document.getElementById('loadingOverlay');
         const txt = document.getElementById('loadingText');
         if(txt) txt.innerText = text;
-        if(show) overlay.classList.remove('hidden'); else overlay.classList.add('hidden');
+        if(show) overlay.classList.remove('hidden');
+        else overlay.classList.add('hidden');
     }
     
     function showSyncBadge(show, text="กำลังบันทึกข้อมูล...") {
@@ -691,23 +667,26 @@
             b: [parseInt(vals[6]), parseInt(vals[7])]
         };
 
-        await executeWithSaving(async () => {
-            if(editIndex >= 0) {
-                mySoilData[editIndex] = newData; // Edit Mode
-            } else {
-                mySoilData.push(newData); // Add Mode
-            }
-        }, editIndex >= 0 ? "กำลังแก้ไข..." : "กำลังเพิ่ม...");
+        // Optimistic update
+        if(editIndex >= 0) {
+            mySoilData[editIndex] = newData; // Edit Mode
+        } else {
+            mySoilData.push(newData); // Add Mode
+        }
         
         cancelEdit();
+        renderConfigTable(); // Immediate visual update
+        saveUserData(); // Background save
     }
 
     async function removeRange(i) {
         if(confirm("ยืนยันลบข้อมูลแถวนี้?")) {
             if(editIndex === i) cancelEdit();
-            await executeWithSaving(async () => {
-                mySoilData.splice(i, 1);
-            }, "กำลังลบข้อมูล...");
+            
+            // Optimistic update
+            mySoilData.splice(i, 1);
+            renderConfigTable();
+            saveUserData(); 
         }
     }
 
@@ -755,10 +734,10 @@
                 
                 if(newData.length > 0) {
                     if(confirm(`พบข้อมูล ${newData.length} รายการ ต้องการนำเข้าและทับข้อมูลเดิมหรือไม่?`)) {
-                        await executeWithSaving(async () => { 
-                            mySoilData = newData; 
-                        }, "กำลังนำเข้าไฟล์...");
-                        alert("นำเข้าข้อมูลเรียบร้อย");
+                        mySoilData = newData; // Replace Data
+                        renderConfigTable(); // Update UI
+                        saveUserData(); // Sync
+                        showToast("นำเข้าข้อมูลเรียบร้อย");
                     }
                 } else {
                     alert("ไม่พบข้อมูลที่ถูกต้องในไฟล์");
@@ -863,12 +842,18 @@
 
     function logout() {
         if(isCameraActive) stopCameraStream();
-        currentUser = null; mySoilData = [];
+        currentUser = null;
+        // Reload admin data for guest (read-only mode)
+        loadUserData('admin').then(() => {
+             updateInputDisplay();
+        });
+        
         document.getElementById('userInfoDisplay').classList.add('hidden');
         if(!document.getElementById('tab-config').classList.contains('hidden')) {
             document.getElementById('admin-panel').classList.add('hidden');
             document.getElementById('login-panel').classList.remove('hidden');
         }
+        switchTab('analyze');
     }
 
     // --- ADMIN LOGIC ---
@@ -1148,6 +1133,7 @@
 
     // Init
     initSystem();
+
 </script>
 </body>
 </html>
