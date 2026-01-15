@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Sarabun', sans-serif; }
         .color-box { transition: all 0.3s ease; }
@@ -242,9 +244,9 @@
                                 <div class="flex justify-between items-center mt-6 mb-2">
                                     <h4 class="font-bold text-gray-700">ตารางช่วงสี</h4>
                                     <div class="flex gap-2">
-                                        <button onclick="exportCSV()" class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 shadow"><i class="fas fa-file-export"></i> Export CSV</button>
-                                        <button onclick="triggerImportCSV()" class="bg-orange-500 text-white px-3 py-1 rounded text-xs hover:bg-orange-600 shadow"><i class="fas fa-file-import"></i> Import CSV</button>
-                                        <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="handleImportCSV(event)">
+                                        <button onclick="exportXLSX()" class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 shadow"><i class="fas fa-file-excel"></i> Export XLSX</button>
+                                        <button onclick="triggerImportXLSX()" class="bg-orange-500 text-white px-3 py-1 rounded text-xs hover:bg-orange-600 shadow"><i class="fas fa-file-import"></i> Import XLSX</button>
+                                        <input type="file" id="xlsxFileInput" accept=".xlsx" class="hidden" onchange="handleImportXLSX(event)">
                                     </div>
                                 </div>
                                 
@@ -540,70 +542,53 @@
         updateInterfaceState();
     }
 
-    // --- CSV IMPORT / EXPORT ---
-    function exportCSV() {
+    // --- XLSX IMPORT / EXPORT ---
+    function exportXLSX() {
         if(!mySoilData || mySoilData.length === 0) {
             alert("ไม่มีข้อมูลที่จะส่งออก");
             return;
         }
-        const headers = ["Type", "Level", "R_Min", "R_Max", "G_Min", "G_Max", "B_Min", "B_Max"];
-        let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
         
-        mySoilData.forEach(row => {
-            let r = row.r, g = row.g, b = row.b;
-            // Escape quotes in text fields
-            let type = row.type.replace(/"/g, '""');
-            let level = row.level.replace(/"/g, '""');
-            
-            let rowData = [
-                `"${type}"`, `"${level}"`, 
-                r[0], r[1], g[0], g[1], b[0], b[1]
-            ];
-            csvContent += rowData.join(",") + "\n";
+        const ws_data = [["Type", "Level", "R_Min", "R_Max", "G_Min", "G_Max", "B_Min", "B_Max"]];
+        mySoilData.forEach(d => {
+            ws_data.push([d.type, d.level, d.r[0], d.r[1], d.g[0], d.g[1], d.b[0], d.b[1]]);
         });
         
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "soil_color_data.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "SoilData");
+        XLSX.writeFile(wb, "soil_data.xlsx");
     }
 
-    function triggerImportCSV() {
-        document.getElementById('csvFileInput').click();
+    function triggerImportXLSX() {
+        document.getElementById('xlsxFileInput').click();
     }
 
-    function handleImportCSV(event) {
+    function handleImportXLSX(event) {
         const file = event.target.files[0];
         if (!file) return;
         
         const reader = new FileReader();
         reader.onload = function(e) {
-            const text = e.target.result;
-            const lines = text.split('\n');
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+            
             const newData = [];
             
-            // Skip header (index 0)
-            for(let i = 1; i < lines.length; i++) {
-                if(lines[i].trim() === "") continue;
-                
-                // Regex to split by comma, ignoring commas inside quotes
-                // Reference: standard CSV parsing regex pattern
-                const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-                let cols = lines[i].split(regex);
-                
-                // Clean up quotes
-                cols = cols.map(c => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
-                
-                if(cols.length >= 8) {
+            // Skip header (index 0), start from index 1
+            for(let i = 1; i < jsonData.length; i++) {
+                const row = jsonData[i];
+                // Ensure row has enough columns (at least 8)
+                if(row.length >= 8) {
                     newData.push({
-                        type: cols[0],
-                        level: cols[1],
-                        r: [parseInt(cols[2]), parseInt(cols[3])],
-                        g: [parseInt(cols[4]), parseInt(cols[5])],
-                        b: [parseInt(cols[6]), parseInt(cols[7])]
+                        type: row[0].toString(),
+                        level: row[1].toString(),
+                        r: [parseInt(row[2]), parseInt(row[3])],
+                        g: [parseInt(row[4]), parseInt(row[5])],
+                        b: [parseInt(row[6]), parseInt(row[7])]
                     });
                 }
             }
@@ -619,8 +604,8 @@
                 alert("ไม่พบข้อมูลที่ถูกต้องในไฟล์ หรือรูปแบบไฟล์ผิด");
             }
         };
-        reader.readAsText(file);
-        // Reset input to allow re-importing same file if needed
+        reader.readAsArrayBuffer(file);
+        // Reset input to allow re-importing same file
         event.target.value = '';
     }
 
@@ -875,13 +860,13 @@
         }
     }
 
-    function switchTab(t) {
-        if(t === 'config' && !currentUser) {
+    function switchTab(selectedTab) {
+        if(selectedTab === 'config' && !currentUser) {
             document.getElementById('tab-analyze').classList.add('hidden');
             document.getElementById('tab-config').classList.remove('hidden');
             document.getElementById('login-panel').classList.remove('hidden');
             document.getElementById('admin-panel').classList.add('hidden');
-        } else if (t === 'config') {
+        } else if (selectedTab === 'config') {
             document.getElementById('tab-analyze').classList.add('hidden');
             document.getElementById('tab-config').classList.remove('hidden');
             document.getElementById('login-panel').classList.add('hidden');
@@ -890,9 +875,9 @@
             document.getElementById('tab-analyze').classList.remove('hidden');
             document.getElementById('tab-config').classList.add('hidden');
         }
-        ['analyze', 'config'].forEach(t => {
-            const btn = document.getElementById('btn-'+t);
-            if(t===tabName) btn.className="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition";
+        ['analyze', 'config'].forEach(tab => {
+            const btn = document.getElementById('btn-'+tab);
+            if(tab === selectedTab) btn.className="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition";
             else btn.className="flex-1 py-3 text-gray-500 hover:text-emerald-500 font-medium focus:outline-none transition";
         });
     }
