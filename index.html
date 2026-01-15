@@ -293,11 +293,11 @@
             localStorage.setItem(key, value);
             if (this.sheetUrl) {
                 try {
-                    await fetch(this.sheetUrl, {
+                    await fetch(`${this.sheetUrl}?action=write&key=${key}`, {
                         method: 'POST',
                         mode: 'no-cors',
                         headers: { 'Content-Type': 'text/plain' },
-                        body: JSON.stringify({ action: 'write', key: key, value: value })
+                        body: value
                     });
                 } catch(e) { console.error("Cloud Write Error", e); }
             }
