@@ -49,16 +49,12 @@
         }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* A4 Report Template Style (Hidden by default) */
+        /* A4 Report Template Style */
         #reportTemplate {
             width: 210mm; min-height: 297mm; padding: 20mm;
             background: white; color: black;
             position: fixed; left: -9999px; top: 0;
         }
-        .report-header { border-bottom: 2px solid #10b981; padding-bottom: 10px; margin-bottom: 20px; }
-        .report-section { margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; }
-        .report-label { font-weight: bold; color: #374151; }
-        .report-value { color: #111827; }
         .credit-text {
             background: linear-gradient(to right, #10b981, #3b82f6);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
@@ -89,7 +85,6 @@
         <p id="loadingSubText" class="text-sm text-gray-500 mt-2">กรุณารอสักครู่...</p>
     </div>
 
-    <!-- Main Container -->
     <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden w-full flex-grow">
         
         <!-- Header -->
@@ -115,6 +110,9 @@
                         <path d="M50 45C50 45 75 35 75 20C75 20 60 25 50 45Z" fill="#22C55E"/>
                         <path d="M50 45C50 45 75 35 75 20C75 20 60 25 50 45Z" stroke="#15803D" stroke-width="1"/>
                         <path d="M50 40C50 40 50 15 35 25C35 25 45 30 50 40Z" fill="#86EFAC"/>
+                        <circle cx="30" cy="30" r="2" fill="#FBBF24"/>
+                        <circle cx="70" cy="25" r="2" fill="#FBBF24"/>
+                        <circle cx="50" cy="15" r="2" fill="#FBBF24"/>
                     </svg>
                 </div>
                 <div class="text-center md:text-left">
@@ -124,8 +122,8 @@
                     <p class="mt-2 text-emerald-100 font-light text-sm md:text-base">
                         <i class="fas fa-flask mr-2"></i>โปรแกรมเทียบค่าสีชุดตรวจดิน
                     </p>
-                    <div id="dbStatus" class="text-xs text-yellow-200 mt-2 bg-black/20 px-2 py-1 rounded inline-block">
-                        <i class="fas fa-database"></i> สถานะ: พร้อมใช้งาน (Cloud Auto-Sync)
+                    <div id="dbStatus" class="text-xs text-red-300 mt-2 bg-black/20 px-2 py-1 rounded inline-block animate-pulse">
+                        <i class="fas fa-circle-notch fa-spin"></i> กำลังเชื่อมต่อ...
                     </div>
                 </div>
             </div>
@@ -135,6 +133,13 @@
                 <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs transition shadow-md font-bold text-white">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
+            </div>
+            
+             <!-- Top Right Status Icon -->
+            <div class="absolute top-4 right-4 z-10 flex gap-4 items-center" id="statusIconContainer">
+                <div id="topRightStatus" class="flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full w-10 h-10 shadow-lg">
+                    <i class="fas fa-times-circle text-red-500 text-2xl drop-shadow-md"></i>
+                </div>
             </div>
         </div>
 
@@ -183,7 +188,6 @@
                         </div>
 
                         <button id="btnManualAnalyze" onclick="analyzeSoil()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition transform active:scale-95 hidden">ประมวลผลวิเคราะห์</button>
-                        <p class="text-center text-xs text-gray-400 mt-2" id="autoAnalyzeStatus"></p>
                     </div>
 
                     <div class="flex flex-col h-full space-y-4 md:space-y-6">
@@ -306,8 +310,6 @@
 
     <!-- Hidden A4 Template for PDF Export -->
     <div id="reportTemplate" class="bg-white p-8 hidden text-black" style="width: 210mm; min-height: 297mm; font-family: 'Sarabun', sans-serif;">
-        
-        <!-- Header -->
         <div class="flex justify-between items-center border-b-2 border-emerald-600 pb-4 mb-6">
             <div class="flex items-center gap-4">
                 <div class="text-4xl text-emerald-600"><i class="fas fa-flask"></i></div>
@@ -321,57 +323,28 @@
                 <p>ผู้ทดสอบ: <span id="reportUser"></span></p>
             </div>
         </div>
-
-        <!-- Content Grid -->
         <div class="grid grid-cols-2 gap-8">
-            
-            <!-- Left: Image Evidence -->
             <div>
                 <div class="bg-gray-100 p-2 rounded-lg border border-gray-300 flex justify-center items-center" style="height: 300px;">
-                    <!-- Image will be injected here via Canvas -->
                     <img id="reportImage" class="max-w-full max-h-full object-contain" />
                 </div>
                 <p class="text-center text-xs text-gray-400 mt-2">* จุดสีเขียวแสดงตำแหน่งที่ใช้คำนวณค่าสี</p>
             </div>
-
-            <!-- Right: Analysis Details -->
             <div class="space-y-6">
-                
-                <!-- Result Box -->
                 <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-6 text-center">
                     <h3 class="text-emerald-800 font-bold text-sm uppercase tracking-wide">ผลการวิเคราะห์ (Result)</h3>
                     <div id="reportResultLevel" class="text-4xl font-extrabold text-emerald-600 mt-2">N/A</div>
                     <div id="reportResultType" class="text-gray-600 font-medium mt-1">N/A</div>
                 </div>
-
-                <!-- Parameters Table -->
                 <table class="w-full text-sm border-collapse">
-                    <tr class="border-b">
-                        <th class="py-2 text-left text-gray-500">พารามิเตอร์</th>
-                        <th class="py-2 text-right text-gray-800">ค่าที่วัดได้</th>
-                    </tr>
-                    <tr class="border-b">
-                        <td class="py-2">ค่าสีแดง (R)</td>
-                        <td class="py-2 text-right font-mono" id="reportR">0</td>
-                    </tr>
-                    <tr class="border-b">
-                        <td class="py-2">ค่าสีเขียว (G)</td>
-                        <td class="py-2 text-right font-mono" id="reportG">0</td>
-                    </tr>
-                    <tr class="border-b">
-                        <td class="py-2">ค่าสีน้ำเงิน (B)</td>
-                        <td class="py-2 text-right font-mono" id="reportB">0</td>
-                    </tr>
-                    <tr>
-                        <td class="py-2 font-bold text-yellow-700">ความสว่าง (Brightness)</td>
-                        <td class="py-2 text-right font-bold text-yellow-700 font-mono" id="reportBrightness">0</td>
-                    </tr>
+                    <tr class="border-b"><th class="py-2 text-left text-gray-500">พารามิเตอร์</th><th class="py-2 text-right text-gray-800">ค่าที่วัดได้</th></tr>
+                    <tr class="border-b"><td class="py-2">ค่าสีแดง (R)</td><td class="py-2 text-right font-mono" id="reportR">0</td></tr>
+                    <tr class="border-b"><td class="py-2">ค่าสีเขียว (G)</td><td class="py-2 text-right font-mono" id="reportG">0</td></tr>
+                    <tr class="border-b"><td class="py-2">ค่าสีน้ำเงิน (B)</td><td class="py-2 text-right font-mono" id="reportB">0</td></tr>
+                    <tr><td class="py-2 font-bold text-yellow-700">ความสว่าง (Brightness)</td><td class="py-2 text-right font-bold text-yellow-700 font-mono" id="reportBrightness">0</td></tr>
                 </table>
-
             </div>
         </div>
-
-        <!-- Footer -->
         <div class="mt-12 text-center text-xs text-gray-400 border-t pt-4">
             <p>รายงานนี้สร้างโดยระบบอัตโนมัติจากโปรแกรม Soil Color Chart Analyzer Pro</p>
         </div>
@@ -380,77 +353,6 @@
     <div class="text-center mt-4"><p class="text-xs font-mono credit-text opacity-70 hover:opacity-100 transition duration-300">✨ Design by AAAmacky</p></div>
 
 <script>
-    // --- PDF EXPORT FUNCTION ---
-    async function generatePDFReport() {
-        showLoading(true, "กำลังสร้างรายงาน PDF...");
-        
-        // 1. Prepare Data
-        const now = new Date();
-        document.getElementById('reportDate').innerText = now.toLocaleString('th-TH');
-        document.getElementById('reportUser').innerText = currentUser ? currentUser.username : 'Guest';
-        
-        document.getElementById('reportResultLevel').innerText = document.getElementById('resultText').innerText;
-        document.getElementById('reportResultType').innerText = document.getElementById('testType').value;
-        
-        document.getElementById('reportR').innerText = document.getElementById('inputR').value;
-        document.getElementById('reportG').innerText = document.getElementById('inputG').value;
-        document.getElementById('reportB').innerText = document.getElementById('inputB').value;
-        document.getElementById('reportBrightness').innerText = document.getElementById('valBrightness').innerText;
-
-        // 2. Capture Image with Marker
-        const mediaContainer = document.getElementById('mediaContainer');
-        const video = document.getElementById('videoElement');
-        const imgEl = document.getElementById('imagePreview');
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        const w = mediaContainer.offsetWidth;
-        const h = mediaContainer.offsetHeight;
-        canvas.width = w;
-        canvas.height = h;
-
-        if (!imgEl.classList.contains('hidden')) {
-             ctx.drawImage(imgEl, 0, 0, w, h); 
-        } else {
-             ctx.drawImage(video, 0, 0, w, h);
-        }
-
-        if (markerPosition) {
-             const marker = document.getElementById('colorMarker');
-             const left = parseFloat(marker.style.left) || w/2;
-             const top = parseFloat(marker.style.top) || h/2;
-             ctx.strokeStyle = '#00ff00';
-             ctx.lineWidth = 3;
-             ctx.strokeRect(left - 15, top - 15, 30, 30);
-        }
-        
-        document.getElementById('reportImage').src = canvas.toDataURL('image/jpeg');
-
-        const template = document.getElementById('reportTemplate');
-        template.classList.remove('hidden');
-        
-        try {
-            const canvasReport = await html2canvas(template, { scale: 2 });
-            const imgData = canvasReport.toDataURL('image/png');
-            
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvasReport.height * pdfWidth) / canvasReport.width;
-            
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`Soil_Report_${now.getTime()}.pdf`);
-            
-            showToast("สร้างรายงาน PDF สำเร็จ");
-        } catch(err) {
-            console.error(err);
-            alert("เกิดข้อผิดพลาดในการสร้าง PDF");
-        } finally {
-            template.classList.add('hidden');
-            showLoading(false);
-        }
-    }
-
     // --- STORAGE ENGINE (HARDCODED) ---
     const HARDCODED_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxSscpgNcVG9vAvwH6Ccw44AQbh6LtE9Pwp7dfBIw35OeG4SZfTYg3vqmqCS3eCQYRJ/exec';
 
@@ -469,23 +371,19 @@
 
         async set(key, value) {
             localStorage.setItem(key, value);
-            // Optimistic save (no await) - Fire and forget
-            fetch(`${HARDCODED_SHEET_URL}?action=write&key=${encodeURIComponent(key)}`, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'text/plain' },
-                body: value
-            })
-            .then(() => {
-                showSyncBadge(false);
-                showToast("บันทึกข้อมูลลง Cloud แล้ว");
-            })
-            .catch(e => { 
+            try {
+                // Return the promise
+                const response = await fetch(`${HARDCODED_SHEET_URL}?action=write&key=${encodeURIComponent(key)}`, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: value
+                });
+                return true; 
+            } catch(e) { 
                 console.error("Cloud Write Error", e);
-                showSyncBadge(false);
-                showToast("เชื่อมต่อ Cloud ไม่ได้ (บันทึกในเครื่อง)", "error");
-            });
-            showSyncBadge(true, "กำลังบันทึกข้อมูล...");
+                return false;
+            }
         }
     };
 
@@ -494,7 +392,7 @@
     let currentUser = null;
     let mySoilData = []; 
     let myPreferences = { showBrightness: false, useRealTimeAnalysis: true, selectedCameraId: '' };
-    let editIndex = -1; // -1 means add mode
+    let editIndex = -1; 
     let isCameraActive = false;
     let markerPosition = null; 
     let currentFacingMode = 'environment';
@@ -524,29 +422,100 @@
         { type: 'pH', level: '7.0 (กลาง)', r: [100, 150], g: [200, 250], b: [100, 150] } 
     ];
 
-    // --- SYSTEM & DATA LOADING ---
-    async function initSystem() { 
-        window.populateCameraList = populateCameraList; 
-        await loadUsersList(); 
-        
-        // Load Admin data as default for Guest
-        if (!currentUser) {
-            await loadUserData('admin');
-        }
-
-        setTimeout(() => {
-             updateInterfaceState();
-             updateInputDisplay();
-             populateCameraList();
-        }, 100);
+    // --- HELPER FUNCTIONS ---
+    function populateCameraList() {
+        const select = document.getElementById('cameraSelect');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- อัตโนมัติ --</option>';
+        navigator.mediaDevices.enumerateDevices().then(devices => {
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`; 
+                if(device.deviceId === myPreferences.selectedCameraId) option.selected = true;
+                select.appendChild(option);
+            });
+        });
     }
 
+    function analyzeSoil() {
+        const inputR = document.getElementById('inputR');
+        if(!inputR) return;
+        const r = parseInt(inputR.value);
+        const g = parseInt(document.getElementById('inputG').value);
+        const b = parseInt(document.getElementById('inputB').value);
+        const type = document.getElementById('testType').value;
+        const candidates = mySoilData.filter(d => d.type === type);
+        let match = null, closest = null, minD = Infinity;
+        for(let item of candidates) {
+            if(r >= item.r[0] && r <= item.r[1] && g >= item.g[0] && g <= item.g[1] && b >= item.b[0] && b <= item.b[1]) { match = item; break; }
+            const cR = (item.r[0]+item.r[1])/2, cG = (item.g[0]+item.g[1])/2, cB = (item.b[0]+item.b[1])/2;
+            const dist = Math.sqrt(Math.pow(r-cR,2)+Math.pow(g-cG,2)+Math.pow(b-cB,2));
+            if(dist < minD) { minD = dist; closest = item; }
+        }
+        const txt = document.getElementById('resultText');
+        const desc = document.getElementById('resultDesc');
+        if (!txt) return;
+        if(match) {
+            txt.innerText = match.level; txt.className = "text-2xl md:text-5xl font-extrabold text-emerald-600"; desc.innerText = "ตรงตามช่วงค่าสีที่กำหนด";
+        } else if (closest && minD < 80) {
+            txt.innerText = closest.level + "*"; txt.className = "text-2xl md:text-5xl font-extrabold text-yellow-600"; desc.innerText = "ค่าใกล้เคียงที่สุด (ประมาณการ)";
+        } else {
+            txt.innerText = "ไม่พบข้อมูล"; txt.className = "text-2xl md:text-5xl font-extrabold text-gray-400"; desc.innerText = "อยู่นอกเหนือช่วงข้อมูล";
+        }
+    }
+
+    function updateInputDisplay() {
+        const rEl = document.getElementById('inputR');
+        if(!rEl) return;
+        const r = rEl.value;
+        const g = document.getElementById('inputG').value;
+        const b = document.getElementById('inputB').value;
+        document.getElementById('valR').innerText = r;
+        document.getElementById('valG').innerText = g;
+        document.getElementById('valB').innerText = b;
+        document.getElementById('colorPreview').style.backgroundColor = `rgb(${r},${g},${b})`;
+        if(myPreferences.useRealTimeAnalysis) analyzeSoil();
+    }
+
+    function updateSystemStatus(isReady) {
+        const dbStatus = document.getElementById('dbStatus');
+        const topRightStatus = document.getElementById('topRightStatus');
+        
+        if(isReady) {
+            dbStatus.innerHTML = '<i class="fas fa-check-circle"></i> สถานะ: พร้อมใช้งาน (Cloud Auto-Sync)';
+            dbStatus.className = "text-xs text-yellow-200 mt-2 bg-black/20 px-2 py-1 rounded inline-block";
+            topRightStatus.innerHTML = '<i class="fas fa-check-circle text-green-400 text-2xl drop-shadow-md"></i>';
+        } else {
+            dbStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> สถานะ: ยังไม่พร้อมใช้งาน (กำลังโหลด...)';
+            dbStatus.className = "text-xs text-red-300 mt-2 bg-black/20 px-2 py-1 rounded inline-block animate-pulse";
+            topRightStatus.innerHTML = '<i class="fas fa-times-circle text-red-500 text-2xl drop-shadow-md"></i>';
+        }
+    }
+
+    // --- SYSTEM INIT ---
+    async function initSystem() { 
+        window.populateCameraList = populateCameraList; 
+        updateSystemStatus(false);
+        await loadUsersList(); 
+        if (!currentUser) await loadUserData('admin');
+        setTimeout(() => {
+             if(document.getElementById('inputR')) {
+                 updateInterfaceState();
+                 updateInputDisplay();
+             }
+             populateCameraList();
+             updateSystemStatus(true);
+        }, 500);
+    }
+
+    // ... (User Loading & Storage functions same as before) ...
     async function loadUsersList() {
         const storedUsers = await StorageEngine.get('soil_sys_users');
         if (storedUsers) {
             const parsed = JSON.parse(storedUsers);
-            if(parsed.users) users = parsed.users;
-            else users = parsed;
+            if(parsed.users) users = parsed.users; else users = parsed;
         } else {
             users = JSON.parse(JSON.stringify(DEFAULT_USERS));
             StorageEngine.set('soil_sys_users', JSON.stringify({ users: users, timestamp: Date.now() }));
@@ -554,51 +523,35 @@
     }
 
     async function loadUserData(username) {
-        showLoading(true, "กำลังโหลดข้อมูล...");
         const key = `soil_settings_${username}`;
         try {
             const storedStr = await StorageEngine.get(key);
             let finalData = null;
-            if (storedStr) {
-                finalData = JSON.parse(storedStr);
-            }
-            
+            if (storedStr) finalData = JSON.parse(storedStr);
             if (finalData) {
                 mySoilData = finalData.soilData || [];
                 myPreferences = finalData.preferences || myPreferences;
             } else {
                 mySoilData = JSON.parse(JSON.stringify(DEFAULT_SOIL_DATA));
-                saveUserData(); 
+                if(username === 'admin') saveUserData();
             }
         } catch (e) {
             console.error("Load Error", e);
             mySoilData = JSON.parse(JSON.stringify(DEFAULT_SOIL_DATA));
-        } finally {
-            showLoading(false);
         }
     }
 
-    // New "Optimistic Save" Logic:
-    // Update local -> Render -> Trigger Cloud Save without awaiting
     async function saveUserData() {
-        if (!currentUser) return;
-        const key = `soil_settings_${currentUser.username}`;
-        const payload = {
-            timestamp: Date.now(),
-            soilData: mySoilData,
-            preferences: myPreferences
-        };
+        // If guest, don't save to cloud unless it's initial admin load
+        const targetUser = currentUser ? currentUser.username : 'admin';
+        const key = `soil_settings_${targetUser}`;
+        const payload = { timestamp: Date.now(), soilData: mySoilData, preferences: myPreferences };
         const strPayload = JSON.stringify(payload);
         
         localStorage.setItem(key, strPayload);
-        
-        // Fire and forget, show status
         showSyncBadge(true);
         StorageEngine.set(key, strPayload)
-        .then(() => {
-             setTimeout(() => showSyncBadge(false), 2000);
-             showToast("บันทึก Cloud สำเร็จ");
-        })
+        .then(() => { setTimeout(() => showSyncBadge(false), 2000); showToast("บันทึก Cloud สำเร็จ"); })
         .catch(() => showToast("บันทึก Cloud ล้มเหลว", "error"));
     }
     
@@ -609,150 +562,87 @@
         showLoading(false);
     }
 
-    // --- UI HELPERS ---
+    // ... (UI Helper functions) ...
     function showLoading(show, text="กำลังประมวลผล...") {
         const overlay = document.getElementById('loadingOverlay');
         const txt = document.getElementById('loadingText');
         if(txt) txt.innerText = text;
-        if(show) overlay.classList.remove('hidden');
-        else overlay.classList.add('hidden');
+        if(show) overlay.classList.remove('hidden'); else overlay.classList.add('hidden');
     }
     
     function showSyncBadge(show, text="กำลังบันทึกข้อมูล...") {
         const badge = document.getElementById('syncBadge');
-        if(show) {
-            badge.innerHTML = `<i class="fas fa-sync fa-spin"></i> ${text}`;
-            badge.style.display = 'flex';
-        } else {
-            badge.style.display = 'none';
-        }
+        if(show) { badge.innerHTML = `<i class="fas fa-sync fa-spin"></i> ${text}`; badge.style.display = 'flex'; } 
+        else { badge.style.display = 'none'; }
     }
     
     function showToast(message, type="success") {
         const toast = document.getElementById('statusToast');
         const icon = document.getElementById('toastIcon');
         const msg = document.getElementById('toastMessage');
-        
         toast.className = `status-toast show ${type === 'error' ? 'bg-red-800' : 'bg-gray-800'}`;
         icon.innerHTML = type === 'error' ? '<i class="fas fa-exclamation-circle text-red-400"></i>' : '<i class="fas fa-check-circle text-green-400"></i>';
         msg.innerText = message;
-        
         toast.style.display = 'flex';
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // --- CRUD HELPER ---
-    async function executeWithSaving(operation, statusText="กำลังบันทึกข้อมูล...") {
-        try {
-            await operation(); // Modify local data
-            renderConfigTable(); // Update UI immediately (Optimistic)
-            await saveUserData(); // Then save to cloud in background
-            showToast("บันทึกข้อมูลสำเร็จ");
-        } catch(e) {
-            console.error(e);
-            showToast("บันทึกในเครื่องแล้ว (Cloud Error)", "error");
-        } 
-    }
-
-    // --- TABLE ACTIONS (FIXED DELETE) ---
-    async function saveRange() {
+    // ... (Table Actions: saveRange, removeRange) ...
+    function saveRange() {
         const inputs = ['newType', 'newLevel', 'newRMin', 'newRMax', 'newGMin', 'newGMax', 'newBMin', 'newBMax'];
         const vals = inputs.map(id => document.getElementById(id).value);
         if(vals.some(v => v === '')) { alert("กรอกข้อมูลไม่ครบ"); return; }
-        
         const newData = {
             type: vals[0], level: vals[1],
             r: [parseInt(vals[2]), parseInt(vals[3])],
             g: [parseInt(vals[4]), parseInt(vals[5])],
             b: [parseInt(vals[6]), parseInt(vals[7])]
         };
-
-        // Optimistic update
-        if(editIndex >= 0) {
-            mySoilData[editIndex] = newData; // Edit Mode
-        } else {
-            mySoilData.push(newData); // Add Mode
-        }
-        
-        cancelEdit();
-        renderConfigTable(); // Immediate visual update
-        saveUserData(); // Background save
+        if(editIndex >= 0) { mySoilData[editIndex] = newData; } else { mySoilData.push(newData); }
+        cancelEdit(); renderConfigTable(); saveUserData();
     }
 
-    async function removeRange(i) {
+    function removeRange(i) {
         if(confirm("ยืนยันลบข้อมูลแถวนี้?")) {
             if(editIndex === i) cancelEdit();
-            
-            // Optimistic update
             mySoilData.splice(i, 1);
-            renderConfigTable();
-            saveUserData(); 
+            renderConfigTable(); saveUserData();
         }
     }
 
-    // --- IMPORT EXCEL (FIXED) ---
+    // ... (Import/Export logic) ...
     function triggerImportXLSX() { document.getElementById('xlsxFileInput').click(); }
-
     function handleImportXLSX(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
-        // Reset file input
-        event.target.value = '';
-
-        if (typeof XLSX === 'undefined') {
-            alert("กำลังโหลดไลบรารี Excel กรุณารอสักครู่...");
-            return;
-        }
-
-        showLoading(true, "กำลังอ่านไฟล์...");
+        if (typeof XLSX === 'undefined') { alert("กำลังโหลดไลบรารี Excel..."); return; }
         const reader = new FileReader();
-        
         reader.onload = async function(e) {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-                
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
                 const newData = [];
-                // Robust parsing: skip header, allow various formats
                 for(let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     if(row && row.length >= 8) { 
-                         // Use '0' as default if cell is empty
                          newData.push({
-                            type: String(row[0] || "Unknown"), 
-                            level: String(row[1] || "Unknown"),
-                            r: [parseInt(row[2]||0), parseInt(row[3]||0)],
-                            g: [parseInt(row[4]||0), parseInt(row[5]||0)],
-                            b: [parseInt(row[6]||0), parseInt(row[7]||0)]
+                            type: String(row[0] || "Unknown"), level: String(row[1] || "Unknown"),
+                            r: [parseInt(row[2]||0), parseInt(row[3]||0)], g: [parseInt(row[4]||0), parseInt(row[5]||0)], b: [parseInt(row[6]||0), parseInt(row[7]||0)]
                         });
                     }
                 }
-                
                 if(newData.length > 0) {
-                    if(confirm(`พบข้อมูล ${newData.length} รายการ ต้องการนำเข้าและทับข้อมูลเดิมหรือไม่?`)) {
-                        mySoilData = newData; // Replace Data
-                        renderConfigTable(); // Update UI
-                        saveUserData(); // Sync
-                        showToast("นำเข้าข้อมูลเรียบร้อย");
+                    if(confirm(`พบข้อมูล ${newData.length} รายการ ต้องการนำเข้า?`)) {
+                        mySoilData = newData; renderConfigTable(); saveUserData(); alert("นำเข้าเรียบร้อย");
                     }
-                } else {
-                    alert("ไม่พบข้อมูลที่ถูกต้องในไฟล์");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("ไฟล์ไม่ถูกต้อง หรือเกิดข้อผิดพลาดในการอ่านไฟล์");
-            } finally {
-                showLoading(false);
-            }
+                } else { alert("ไม่พบข้อมูล"); }
+            } catch (err) { alert("ไฟล์ไม่ถูกต้อง"); }
         };
         reader.readAsArrayBuffer(file);
+        event.target.value = '';
     }
     
-    // --- EXPORT ---
     function exportXLSX() {
         if(!mySoilData || mySoilData.length === 0) { alert("ไม่มีข้อมูล"); return; }
         const ws_data = [["Type", "Level", "R_Min", "R_Max", "G_Min", "G_Max", "B_Min", "B_Max"]];
@@ -763,24 +653,13 @@
         XLSX.writeFile(wb, "soil_data.xlsx");
     }
 
-    // --- RENDER & EDIT ---
+    // ... (UI Render & Auth) ...
     function renderConfigTable() {
         const tbody = document.getElementById('configTableBody');
         if(!tbody) return;
         tbody.innerHTML = '';
         mySoilData.forEach((d, i) => {
-            tbody.innerHTML += `
-            <tr class="bg-white border-b hover:bg-gray-50">
-                <td class="px-3 py-2 font-bold">${d.type}</td>
-                <td class="px-3 py-2 text-xs">${d.level}</td>
-                <td class="px-3 py-2 text-red-600 text-xs">${d.r[0]}-${d.r[1]}</td>
-                <td class="px-3 py-2 text-green-600 text-xs">${d.g[0]}-${d.g[1]}</td>
-                <td class="px-3 py-2 text-blue-600 text-xs">${d.b[0]}-${d.b[1]}</td>
-                <td class="px-3 py-2 text-center flex gap-1 justify-center">
-                    <button onclick="startEdit(${i})" class="text-blue-500 hover:text-blue-700" title="แก้ไข"><i class="fas fa-edit"></i></button>
-                    <button onclick="removeRange(${i})" class="text-red-500 hover:text-red-700" title="ลบ"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>`;
+            tbody.innerHTML += `<tr class="bg-white border-b hover:bg-gray-50"><td class="px-3 py-2 font-bold">${d.type}</td><td class="px-3 py-2 text-xs">${d.level}</td><td class="px-3 py-2 text-red-600 text-xs">${d.r[0]}-${d.r[1]}</td><td class="px-3 py-2 text-green-600 text-xs">${d.g[0]}-${d.g[1]}</td><td class="px-3 py-2 text-blue-600 text-xs">${d.b[0]}-${d.b[1]}</td><td class="px-3 py-2 text-center flex gap-1 justify-center"><button onclick="startEdit(${i})" class="text-blue-500 mr-2"><i class="fas fa-edit"></i></button><button onclick="removeRange(${i})" class="text-red-500"><i class="fas fa-trash"></i></button></td></tr>`;
         });
     }
 
@@ -790,7 +669,6 @@
         const fields = ['newType', 'newLevel', 'newRMin', 'newRMax', 'newGMin', 'newGMax', 'newBMin', 'newBMax'];
         const values = [item.type, item.level, item.r[0], item.r[1], item.g[0], item.g[1], item.b[0], item.b[1]];
         fields.forEach((id, idx) => document.getElementById(id).value = values[idx]);
-
         document.getElementById('formTitle').innerText = `แก้ไขข้อมูลแถวที่ ${index + 1}`;
         document.getElementById('btnSaveRange').innerHTML = '<i class="fas fa-save"></i> บันทึกแก้ไข';
         document.getElementById('btnSaveRange').className = "bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 text-sm flex-1";
@@ -806,8 +684,7 @@
         document.getElementById('btnCancelEdit').classList.add('hidden');
         ['newType', 'newLevel', 'newRMin', 'newRMax', 'newGMin', 'newGMax', 'newBMin', 'newBMax'].forEach(id => document.getElementById(id).value = '');
     }
-    
-    // --- AUTH & OTHER FUNCTIONS ---
+
     async function handleLogin(e) {
         e.preventDefault();
         const u = document.getElementById('username').value;
@@ -815,8 +692,7 @@
         showLoading(true, "ตรวจสอบสิทธิ์...");
         await loadUsersList(); showLoading(false);
         const foundUser = users.find(user => user.username === u && user.password === p);
-        if (foundUser) performLogin(foundUser);
-        else document.getElementById('loginError').classList.remove('hidden');
+        if (foundUser) performLogin(foundUser); else document.getElementById('loginError').classList.remove('hidden');
     }
 
     async function performLogin(user) {
@@ -830,11 +706,8 @@
         if (user.role === 'admin') userManageBtn.classList.remove('hidden'); else userManageBtn.classList.add('hidden');
         document.getElementById('toggleBrightness').checked = myPreferences.showBrightness;
         document.getElementById('toggleRealTime').checked = myPreferences.useRealTimeAnalysis;
-        toggleBrightnessSetting(false);
-        toggleRealTimeSetting(false);
-        populateCameraList();
-        renderConfigTable();
-        renderUserTable();
+        toggleBrightnessSetting(false); toggleRealTimeSetting(false);
+        populateCameraList(); renderConfigTable(); renderUserTable();
         document.getElementById('username').value = '';
         document.getElementById('password').value = '';
         document.getElementById('loginError').classList.add('hidden');
@@ -843,11 +716,8 @@
     function logout() {
         if(isCameraActive) stopCameraStream();
         currentUser = null;
-        // Reload admin data for guest (read-only mode)
-        loadUserData('admin').then(() => {
-             updateInputDisplay();
-        });
-        
+        updateSystemStatus(false);
+        loadUserData('admin').then(() => { updateInputDisplay(); updateSystemStatus(true); });
         document.getElementById('userInfoDisplay').classList.add('hidden');
         if(!document.getElementById('tab-config').classList.contains('hidden')) {
             document.getElementById('admin-panel').classList.add('hidden');
@@ -856,20 +726,19 @@
         switchTab('analyze');
     }
 
-    // --- ADMIN LOGIC ---
     function switchAdminTab(subTab) {
-        if (subTab === 'user-manage' && (!currentUser || currentUser.role !== 'admin')) { alert("เฉพาะ Admin เท่านั้น"); return; }
+        if (subTab === 'user-manage' && (!currentUser || currentUser.role !== 'admin')) { alert("เฉพาะ Admin"); return; }
         ['admin-color-config', 'admin-user-manage', 'admin-change-pass'].forEach(id => document.getElementById(id).classList.add('hidden'));
         ['menu-color-config', 'menu-user-manage', 'menu-change-pass'].forEach(id => document.getElementById(id).className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600");
         document.getElementById('admin-' + subTab).classList.remove('hidden');
         document.getElementById('menu-' + subTab).className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow";
     }
 
-    async function toggleBrightnessSetting(save=true) {
+    function toggleBrightnessSetting(save=true) {
         const val = document.getElementById('toggleBrightness').checked;
         const div = document.getElementById('brightnessContainer');
         if(div) { if(val) div.classList.remove('hidden'); else div.classList.add('hidden'); }
-        if(save && currentUser) { myPreferences.showBrightness = val; executeWithSaving(async()=>{}, "บันทึกการตั้งค่า..."); }
+        if(save && currentUser) { myPreferences.showBrightness = val; saveUserData(); }
     }
 
     function updateInterfaceState() {
@@ -882,21 +751,17 @@
         if(checkbox) checkbox.checked = myPreferences.useRealTimeAnalysis;
     }
 
-    async function toggleRealTimeSetting(save=true) {
+    function toggleRealTimeSetting(save=true) {
         const isChecked = document.getElementById('toggleRealTime').checked;
-        if(save && currentUser) {
-            myPreferences.useRealTimeAnalysis = isChecked;
-            await executeWithSaving(async()=>{});
-        } else {
-             myPreferences.useRealTimeAnalysis = isChecked;
-        }
+        myPreferences.useRealTimeAnalysis = isChecked;
+        if(save && currentUser) saveUserData();
         updateInterfaceState();
     }
     
     function updateCameraSelection() {
         if(currentUser) {
             myPreferences.selectedCameraId = document.getElementById('cameraSelect').value;
-            executeWithSaving(async()=>{}); 
+            saveUserData(); 
         }
     }
 
@@ -915,8 +780,7 @@
             if(users.some(x => x.username === u)) { alert("ชื่อซ้ำ"); return; }
             users.push({ id: Date.now(), username: u, password: p, role: 'user' });
             await saveSystemUsers();
-            renderUserTable();
-            alert("เพิ่มสำเร็จ");
+            renderUserTable(); alert("เพิ่มสำเร็จ");
         }
     }
 
@@ -960,63 +824,6 @@
             if(tab === selectedTab) btn.className="flex-1 py-3 text-emerald-600 border-b-2 border-emerald-600 font-bold focus:outline-none transition";
             else btn.className="flex-1 py-3 text-gray-500 hover:text-emerald-500 font-medium focus:outline-none transition";
         });
-    }
-
-    // --- STANDARD FUNCTIONS ---
-    function analyzeSoil() {
-        const inputR = document.getElementById('inputR');
-        if(!inputR) return;
-        const r = parseInt(inputR.value);
-        const g = parseInt(document.getElementById('inputG').value);
-        const b = parseInt(document.getElementById('inputB').value);
-        const type = document.getElementById('testType').value;
-        const candidates = mySoilData.filter(d => d.type === type);
-        let match = null, closest = null, minD = Infinity;
-        for(let item of candidates) {
-            if(r >= item.r[0] && r <= item.r[1] && g >= item.g[0] && g <= item.g[1] && b >= item.b[0] && b <= item.b[1]) { match = item; break; }
-            const cR = (item.r[0]+item.r[1])/2, cG = (item.g[0]+item.g[1])/2, cB = (item.b[0]+item.b[1])/2;
-            const dist = Math.sqrt(Math.pow(r-cR,2)+Math.pow(g-cG,2)+Math.pow(b-cB,2));
-            if(dist < minD) { minD = dist; closest = item; }
-        }
-        const txt = document.getElementById('resultText');
-        const desc = document.getElementById('resultDesc');
-        if (!txt) return;
-        if(match) {
-            txt.innerText = match.level; txt.className = "text-2xl md:text-5xl font-extrabold text-emerald-600"; desc.innerText = "ตรงตามช่วงค่าสีที่กำหนด";
-        } else if (closest && minD < 80) {
-            txt.innerText = closest.level + "*"; txt.className = "text-2xl md:text-5xl font-extrabold text-yellow-600"; desc.innerText = "ค่าใกล้เคียงที่สุด (ประมาณการ)";
-        } else {
-            txt.innerText = "ไม่พบข้อมูล"; txt.className = "text-2xl md:text-5xl font-extrabold text-gray-400"; desc.innerText = "อยู่นอกเหนือช่วงข้อมูล";
-        }
-    }
-
-    function populateCameraList() {
-        const select = document.getElementById('cameraSelect');
-        if (!select) return;
-        select.innerHTML = '<option value="">-- อัตโนมัติ --</option>';
-        navigator.mediaDevices.enumerateDevices().then(devices => {
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            videoDevices.forEach((device, index) => {
-                const option = document.createElement('option');
-                option.value = device.deviceId;
-                option.text = device.label || `Camera ${index + 1}`; 
-                if(device.deviceId === myPreferences.selectedCameraId) option.selected = true;
-                select.appendChild(option);
-            });
-        });
-    }
-
-    function updateInputDisplay() {
-        const rEl = document.getElementById('inputR');
-        if(!rEl) return;
-        const r = rEl.value;
-        const g = document.getElementById('inputG').value;
-        const b = document.getElementById('inputB').value;
-        document.getElementById('valR').innerText = r;
-        document.getElementById('valG').innerText = g;
-        document.getElementById('valB').innerText = b;
-        document.getElementById('colorPreview').style.backgroundColor = `rgb(${r},${g},${b})`;
-        if(myPreferences.useRealTimeAnalysis) analyzeSoil();
     }
 
     function toggleCamera() {
@@ -1131,7 +938,58 @@
         reader.readAsDataURL(file);
     }
 
-    // Init
+    // PDF GENERATION 
+    async function generatePDFReport() {
+        showLoading(true, "กำลังสร้างรายงาน PDF...");
+        const now = new Date();
+        document.getElementById('reportDate').innerText = now.toLocaleString('th-TH');
+        document.getElementById('reportUser').innerText = currentUser ? currentUser.username : 'Guest';
+        document.getElementById('reportResultLevel').innerText = document.getElementById('resultText').innerText;
+        document.getElementById('reportResultType').innerText = document.getElementById('testType').value;
+        document.getElementById('reportR').innerText = document.getElementById('inputR').value;
+        document.getElementById('reportG').innerText = document.getElementById('inputG').value;
+        document.getElementById('reportB').innerText = document.getElementById('inputB').value;
+        document.getElementById('reportBrightness').innerText = document.getElementById('valBrightness').innerText;
+        const mediaContainer = document.getElementById('mediaContainer');
+        const video = document.getElementById('videoElement');
+        const imgEl = document.getElementById('imagePreview');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const w = mediaContainer.offsetWidth;
+        const h = mediaContainer.offsetHeight;
+        canvas.width = w;
+        canvas.height = h;
+        if (!imgEl.classList.contains('hidden')) { ctx.drawImage(imgEl, 0, 0, w, h); } else { ctx.drawImage(video, 0, 0, w, h); }
+        if (markerPosition) {
+             const marker = document.getElementById('colorMarker');
+             const left = parseFloat(marker.style.left) || w/2;
+             const top = parseFloat(marker.style.top) || h/2;
+             ctx.strokeStyle = '#00ff00';
+             ctx.lineWidth = 3;
+             ctx.strokeRect(left - 15, top - 15, 30, 30);
+        }
+        document.getElementById('reportImage').src = canvas.toDataURL('image/jpeg');
+        const template = document.getElementById('reportTemplate');
+        template.classList.remove('hidden');
+        try {
+            const canvasReport = await html2canvas(template, { scale: 2 });
+            const imgData = canvasReport.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvasReport.height * pdfWidth) / canvasReport.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Soil_Report_${now.getTime()}.pdf`);
+            showToast("สร้างรายงาน PDF สำเร็จ");
+        } catch(err) {
+            console.error(err);
+            alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+        } finally {
+            template.classList.add('hidden');
+            showLoading(false);
+        }
+    }
+
     initSystem();
 
 </script>
