@@ -85,6 +85,7 @@
         <p id="loadingSubText" class="text-sm text-gray-500 mt-2">กรุณารอสักครู่...</p>
     </div>
 
+    <!-- Main Container -->
     <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden w-full flex-grow">
         
         <!-- Header -->
@@ -372,7 +373,6 @@
         async set(key, value) {
             localStorage.setItem(key, value);
             try {
-                // Return the promise
                 const response = await fetch(`${HARDCODED_SHEET_URL}?action=write&key=${encodeURIComponent(key)}`, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -499,7 +499,12 @@
         window.populateCameraList = populateCameraList; 
         updateSystemStatus(false);
         await loadUsersList(); 
-        if (!currentUser) await loadUserData('admin');
+        
+        // Auto-load admin data if not logged in (Guest Mode)
+        if (!currentUser) {
+            await loadUserData('admin');
+        }
+
         setTimeout(() => {
              if(document.getElementById('inputR')) {
                  updateInterfaceState();
@@ -515,7 +520,8 @@
         const storedUsers = await StorageEngine.get('soil_sys_users');
         if (storedUsers) {
             const parsed = JSON.parse(storedUsers);
-            if(parsed.users) users = parsed.users; else users = parsed;
+            if(parsed.users) users = parsed.users;
+            else users = parsed;
         } else {
             users = JSON.parse(JSON.stringify(DEFAULT_USERS));
             StorageEngine.set('soil_sys_users', JSON.stringify({ users: users, timestamp: Date.now() }));
@@ -523,6 +529,7 @@
     }
 
     async function loadUserData(username) {
+        // showLoading(true, "กำลังโหลดข้อมูล..."); // Disabled for smoother non-blocking
         const key = `soil_settings_${username}`;
         try {
             const storedStr = await StorageEngine.get(key);
@@ -533,6 +540,7 @@
                 myPreferences = finalData.preferences || myPreferences;
             } else {
                 mySoilData = JSON.parse(JSON.stringify(DEFAULT_SOIL_DATA));
+                // Only auto-save if admin to initialize
                 if(username === 'admin') saveUserData();
             }
         } catch (e) {
@@ -541,18 +549,28 @@
         }
     }
 
+    // New "Optimistic Save" Logic:
+    // Update local -> Render -> Trigger Cloud Save without awaiting
     async function saveUserData() {
         // If guest, don't save to cloud unless it's initial admin load
         const targetUser = currentUser ? currentUser.username : 'admin';
+        // Guest mode read-only check can be here if needed
+        
         const key = `soil_settings_${targetUser}`;
-        const payload = { timestamp: Date.now(), soilData: mySoilData, preferences: myPreferences };
+        const payload = {
+            timestamp: Date.now(),
+            soilData: mySoilData,
+            preferences: myPreferences
+        };
         const strPayload = JSON.stringify(payload);
         
         localStorage.setItem(key, strPayload);
+        
+        // Fire and forget, show status
         showSyncBadge(true);
         StorageEngine.set(key, strPayload)
-        .then(() => { setTimeout(() => showSyncBadge(false), 2000); showToast("บันทึก Cloud สำเร็จ"); })
-        .catch(() => showToast("บันทึก Cloud ล้มเหลว", "error"));
+        .then(() => { setTimeout(() => showSyncBadge(false), 2000); })
+        .catch(() => showToast("บันทึก Cloud ล้มเหลว (ใช้ในเครื่อง)", "error"));
     }
     
     async function saveSystemUsers() {
@@ -567,7 +585,8 @@
         const overlay = document.getElementById('loadingOverlay');
         const txt = document.getElementById('loadingText');
         if(txt) txt.innerText = text;
-        if(show) overlay.classList.remove('hidden'); else overlay.classList.add('hidden');
+        if(show) overlay.classList.remove('hidden');
+        else overlay.classList.add('hidden');
     }
     
     function showSyncBadge(show, text="กำลังบันทึกข้อมูล...") {
@@ -587,7 +606,7 @@
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ... (Table Actions: saveRange, removeRange) ...
+    // --- TABLE ACTIONS (FAST UI) ---
     function saveRange() {
         const inputs = ['newType', 'newLevel', 'newRMin', 'newRMax', 'newGMin', 'newGMax', 'newBMin', 'newBMax'];
         const vals = inputs.map(id => document.getElementById(id).value);
@@ -610,7 +629,7 @@
         }
     }
 
-    // ... (Import/Export logic) ...
+    // --- IMPORT EXCEL ---
     function triggerImportXLSX() { document.getElementById('xlsxFileInput').click(); }
     function handleImportXLSX(event) {
         const file = event.target.files[0];
@@ -643,6 +662,7 @@
         event.target.value = '';
     }
     
+    // --- EXPORT ---
     function exportXLSX() {
         if(!mySoilData || mySoilData.length === 0) { alert("ไม่มีข้อมูล"); return; }
         const ws_data = [["Type", "Level", "R_Min", "R_Max", "G_Min", "G_Max", "B_Min", "B_Max"]];
@@ -653,7 +673,7 @@
         XLSX.writeFile(wb, "soil_data.xlsx");
     }
 
-    // ... (UI Render & Auth) ...
+    // --- RENDER & EDIT ---
     function renderConfigTable() {
         const tbody = document.getElementById('configTableBody');
         if(!tbody) return;
@@ -697,13 +717,19 @@
 
     async function performLogin(user) {
         currentUser = user;
-        await loadUserData(user.username);
+        // Fast UI Switch
         document.getElementById('login-panel').classList.add('hidden');
         document.getElementById('admin-panel').classList.remove('hidden');
         document.getElementById('userInfoDisplay').classList.remove('hidden');
         document.getElementById('loggedInUser').innerText = `👤 ${user.username}`;
         const userManageBtn = document.getElementById('menu-user-manage');
         if (user.role === 'admin') userManageBtn.classList.remove('hidden'); else userManageBtn.classList.add('hidden');
+        
+        // Background load
+        showLoading(true, "กำลังโหลดข้อมูลส่วนตัว...");
+        await loadUserData(user.username);
+        showLoading(false);
+        
         document.getElementById('toggleBrightness').checked = myPreferences.showBrightness;
         document.getElementById('toggleRealTime').checked = myPreferences.useRealTimeAnalysis;
         toggleBrightnessSetting(false); toggleRealTimeSetting(false);
@@ -717,7 +743,7 @@
         if(isCameraActive) stopCameraStream();
         currentUser = null;
         updateSystemStatus(false);
-        loadUserData('admin').then(() => { updateInputDisplay(); updateSystemStatus(true); });
+        loadUserData('admin').then(() => { updateInputDisplay(); renderConfigTable(); updateSystemStatus(true); });
         document.getElementById('userInfoDisplay').classList.add('hidden');
         if(!document.getElementById('tab-config').classList.contains('hidden')) {
             document.getElementById('admin-panel').classList.add('hidden');
@@ -743,10 +769,9 @@
 
     function updateInterfaceState() {
         const btn = document.getElementById('btnManualAnalyze');
-        const statusTxt = document.getElementById('autoAnalyzeStatus');
-        if(!btn || !statusTxt) return;
-        if (myPreferences.useRealTimeAnalysis) { btn.classList.add('hidden'); statusTxt.innerText = ""; analyzeSoil(); } 
-        else { btn.classList.remove('hidden'); statusTxt.innerText = ""; }
+        if(!btn) return;
+        if (myPreferences.useRealTimeAnalysis) { btn.classList.add('hidden'); analyzeSoil(); } 
+        else { btn.classList.remove('hidden'); }
         const checkbox = document.getElementById('toggleRealTime');
         if(checkbox) checkbox.checked = myPreferences.useRealTimeAnalysis;
     }
@@ -911,31 +936,6 @@
                 updateInputDisplay();
             }
         } catch(e){}
-    }
-    
-    function triggerFileUpload() { document.getElementById('fileInput').click(); }
-    
-    function handleImageUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        if (isCameraActive) toggleCamera(); 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = document.getElementById('imagePreview');
-            img.src = e.target.result;
-            document.getElementById('mediaContainer').classList.remove('hidden');
-            document.getElementById('btnFlipCamera').classList.add('hidden');
-            img.classList.remove('hidden');
-            document.getElementById('colorMarker').style.display = 'none';
-            markerPosition = null;
-            img.onload = function() {
-                const canvas = document.getElementById('canvasElement');
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                canvas.getContext('2d').drawImage(img, 0, 0);
-            }
-        };
-        reader.readAsDataURL(file);
     }
 
     // PDF GENERATION 
