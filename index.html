@@ -22,6 +22,19 @@
             background-color: rgba(0, 255, 0, 0.2); box-shadow: 0 0 4px rgba(0,0,0,0.8);
             pointer-events: none; transform: translate(-50%, -50%); z-index: 10; display: none;
         }
+        .center-reticle {
+            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
+            border: 2px solid #ef4444;
+            background-color: rgba(255, 0, 0, 0.1);
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 20;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+        .center-reticle::before, .center-reticle::after {
+            content: ''; position: absolute; background: #ef4444;
+        }
+        .center-reticle::before { top: 50%; left: -10px; width: 60px; height: 1px; transform: translateY(-50%); }
+        .center-reticle::after { left: 50%; top: -10px; height: 60px; width: 1px; transform: translateX(-50%); }
+
         .cursor-crosshair { cursor: crosshair; }
         .loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -72,7 +85,7 @@
 
     <!-- Sync Indicator -->
     <div id="syncBadge" class="sync-badge">
-        <i class="fas fa-circle-notch fa-spin text-emerald-400"></i> กำลังบันทึกข้อมูล...
+        <i class="fas fa-circle-notch fa-spin text-emerald-400"></i> กำลังซิงค์ข้อมูล...
     </div>
 
     <!-- Loading Spinner -->
@@ -85,7 +98,6 @@
         <p id="loadingSubText" class="text-sm text-gray-500 mt-2">กรุณารอสักครู่...</p>
     </div>
 
-    <!-- Main Container -->
     <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden w-full flex-grow">
         
         <!-- Header -->
@@ -123,8 +135,8 @@
                     <p class="mt-2 text-emerald-100 font-light text-sm md:text-base">
                         <i class="fas fa-flask mr-2"></i>โปรแกรมเทียบค่าสีชุดตรวจดิน
                     </p>
-                    <div id="dbStatus" class="text-xs text-red-300 mt-2 bg-black/20 px-2 py-1 rounded inline-block animate-pulse">
-                        <i class="fas fa-circle-notch fa-spin"></i> กำลังเชื่อมต่อ...
+                    <div id="dbStatus" class="text-xs text-yellow-200 mt-2 bg-black/20 px-2 py-1 rounded inline-block">
+                        <i class="fas fa-database"></i> สถานะ: พร้อมใช้งาน (Cloud Auto-Sync)
                     </div>
                 </div>
             </div>
@@ -184,11 +196,15 @@
                                 <video id="videoElement" autoplay playsinline class="absolute top-0 left-0 w-full h-full object-contain hidden opacity-0"></video>
                                 <img id="imagePreview" class="absolute top-0 left-0 w-full h-full object-contain hidden opacity-0" />
                                 <canvas id="canvasElement" class="absolute top-0 left-0 w-full h-full"></canvas>
-                                <div id="colorMarker" class="marker-box"></div>
+                                <!-- Center Reticle for Camera Mode -->
+                                <div id="centerReticle" class="center-reticle hidden"></div>
+                                <!-- Click Marker for Image Mode -->
+                                <div id="colorMarker" class="marker-box hidden"></div>
                             </div>
                         </div>
 
                         <button id="btnManualAnalyze" onclick="analyzeSoil()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition transform active:scale-95 hidden">ประมวลผลวิเคราะห์</button>
+                        <p class="text-center text-xs text-gray-400 mt-2" id="autoAnalyzeStatus"></p>
                     </div>
 
                     <div class="flex flex-col h-full space-y-4 md:space-y-6">
@@ -202,22 +218,79 @@
                             <div id="resultDesc" class="mt-1 text-sm text-gray-600">เลือกธาตุและกำหนดค่าสี</div>
                         </div>
 
-                        <div class="bg-gray-100 p-6 rounded-lg relative shadow-inner">
-                            <h2 class="text-sm font-bold text-gray-500 mb-4 uppercase">3. ค่าสี RGB (ปรับแต่งละเอียด)</h2>
-                            <div class="space-y-4">
-                                <div><div class="flex justify-between"><label class="text-red-600 font-bold">R</label><span id="valR" class="text-gray-600">128</span></div><input type="range" id="inputR" min="0" max="255" value="128" class="w-full accent-red-500" oninput="updateInputDisplay()"></div>
-                                <div><div class="flex justify-between"><label class="text-green-600 font-bold">G</label><span id="valG" class="text-gray-600">128</span></div><input type="range" id="inputG" min="0" max="255" value="128" class="w-full accent-green-500" oninput="updateInputDisplay()"></div>
-                                <div><div class="flex justify-between"><label class="text-blue-600 font-bold">B</label><span id="valB" class="text-gray-600">128</span></div><input type="range" id="inputB" min="0" max="255" value="128" class="w-full accent-blue-500" oninput="updateInputDisplay()"></div>
+                        <div class="bg-gray-100 p-4 rounded-lg relative shadow-inner">
+                            <div class="flex justify-between items-center mb-2">
+                                <h2 class="text-xs font-bold text-gray-500 uppercase">3. ค่าสี RGB (ปรับแต่ง)</h2>
+                                <button id="btnPauseAnalysis" onclick="toggleAnalysisPause()" class="text-[10px] bg-white hover:bg-gray-50 text-gray-600 px-2 py-1 rounded border border-gray-300 shadow-sm transition">
+                                    <i class="fas fa-pause mr-1"></i> หยุดอ่านค่า
+                                </button>
                             </div>
-                            <div id="brightnessContainer" class="mt-4 p-2 bg-yellow-100 rounded border border-yellow-300 hidden">
-                                <div class="flex justify-between items-center text-yellow-800">
-                                    <span class="font-bold text-sm"><i class="fas fa-sun mr-1"></i> ความสว่าง (Brightness)</span>
-                                    <span id="valBrightness" class="font-mono font-bold">0</span>
+                            <!-- Compact RGB Input Grid -->
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <div class="flex flex-col items-center">
+                                    <label class="text-xs font-bold text-red-600 mb-1">R</label>
+                                    <input type="number" id="inputR" min="0" max="255" value="128" class="w-full p-2 text-center border rounded text-sm font-mono border-red-200 focus:border-red-500 focus:ring-1 focus:ring-red-200 outline-none transition-colors" oninput="updateInputDisplay()">
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <label class="text-xs font-bold text-green-600 mb-1">G</label>
+                                    <input type="number" id="inputG" min="0" max="255" value="128" class="w-full p-2 text-center border rounded text-sm font-mono border-green-200 focus:border-green-500 focus:ring-1 focus:ring-green-200 outline-none transition-colors" oninput="updateInputDisplay()">
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <label class="text-xs font-bold text-blue-600 mb-1">B</label>
+                                    <input type="number" id="inputB" min="0" max="255" value="128" class="w-full p-2 text-center border rounded text-sm font-mono border-blue-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-colors" oninput="updateInputDisplay()">
                                 </div>
                             </div>
-                            <div class="mt-4 flex items-center gap-4">
-                                <div class="text-xs text-gray-500">สีที่เลือก:</div>
-                                <div id="colorPreview" class="w-full h-12 rounded shadow-inner border border-gray-300 bg-gray-400"></div>
+                            
+                            <!-- HSV Display Section -->
+                            <div id="hsvDisplayContainer" class="mt-2 p-2 bg-indigo-50 rounded-lg border border-indigo-200 shadow-sm">
+                                <div class="flex justify-between items-center text-indigo-800 mb-1">
+                                    <span class="font-bold text-xs uppercase"><i class="fas fa-palette mr-1"></i> HSV</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono">
+                                    <div class="bg-white p-1 rounded shadow-sm">
+                                        <div class="text-[10px] text-gray-400">Hue</div>
+                                        <div id="valH" class="font-bold text-indigo-600">0°</div>
+                                    </div>
+                                    <div class="bg-white p-1 rounded shadow-sm">
+                                        <div class="text-[10px] text-gray-400">Sat</div>
+                                        <div id="valS" class="font-bold text-indigo-600">0%</div>
+                                    </div>
+                                    <div class="bg-white p-1 rounded shadow-sm">
+                                        <div class="text-[10px] text-gray-400">Val</div>
+                                        <div id="valV" class="font-bold text-indigo-600">0%</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="brightnessContainer" class="mt-2 p-2 bg-yellow-100 rounded border border-yellow-300 hidden">
+                                <div class="flex justify-between items-center text-yellow-800">
+                                    <span class="font-bold text-xs"><i class="fas fa-sun mr-1"></i> Brightness</span>
+                                    <span id="valBrightness" class="font-mono font-bold text-sm">0</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 flex items-center gap-3">
+                                <div class="text-xs text-gray-500 font-bold">Preview:</div>
+                                <div id="colorPreview" class="w-full h-8 rounded shadow-inner border border-gray-300 bg-gray-400 transition-colors duration-200"></div>
+                            </div>
+                        </div>
+
+                        <!-- Calibration Section -->
+                        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4">
+                            <h4 class="font-bold text-orange-800 mb-2 text-sm"><i class="fas fa-balance-scale"></i> ตั้งค่าแสงขาว (Calibration)</h4>
+                            <div class="flex gap-2 mb-2">
+                                <button onclick="calibrateSystem()" class="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded text-sm shadow flex-1">
+                                    <i class="fas fa-magic"></i> Calibrate (กระดาษขาว)
+                                </button>
+                                <button onclick="resetCalibration()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded text-sm shadow">
+                                    <i class="fas fa-undo"></i> Reset
+                                </button>
+                            </div>
+                            <div id="calibrationStatus" class="text-xs text-orange-700 mt-1">
+                                สถานะ: ยังไม่ได้ Calibrate (ใช้ค่าดิบ)
+                            </div>
+                            <div id="lightQualityStatus" class="text-xs font-bold mt-1 text-gray-500">
+                                คุณภาพแสง: รอการวัด...
                             </div>
                         </div>
                     </div>
@@ -246,10 +319,24 @@
                                 <button onclick="switchAdminTab('color-config')" id="menu-color-config" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow"><i class="fas fa-palette w-6"></i> ตั้งค่าสี</button>
                                 <button onclick="switchAdminTab('user-manage')" id="menu-user-manage" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-users-cog w-6"></i> จัดการผู้ใช้</button>
                                 <button onclick="switchAdminTab('change-pass')" id="menu-change-pass" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-key w-6"></i> เปลี่ยนรหัสผ่าน</button>
+                                <button onclick="switchAdminTab('system-status')" id="menu-system-status" class="w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600"><i class="fas fa-server w-6"></i> Cloud Status</button>
                             </div>
                         </div>
                         <div class="w-full md:w-3/4 bg-white border rounded-lg p-6">
                             
+                            <!-- Cloud Status -->
+                            <div id="admin-system-status" class="hidden">
+                                <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">สถานะระบบ Cloud</h3>
+                                <div class="bg-emerald-50 p-4 rounded text-sm text-emerald-800 mb-4 border border-emerald-200">
+                                    <p class="font-bold"><i class="fas fa-wifi"></i> เชื่อมต่อฐานข้อมูลอัตโนมัติแล้ว</p>
+                                    <p class="text-xs mt-2 text-gray-600">URL: ...Script.google.com.../exec</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="forceSyncData()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"><i class="fas fa-sync"></i> ทดสอบการเชื่อมต่อ / บังคับ Sync</button>
+                                    <button onclick="resetToDefaults()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"><i class="fas fa-trash-restore"></i> รีเซ็ตข้อมูลเป็นค่าเริ่มต้น</button>
+                                </div>
+                            </div>
+
                             <!-- Color Config -->
                             <div id="admin-color-config" class="block">
                                 <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">จัดการฐานข้อมูลสี (ส่วนตัว)</h3>
@@ -342,6 +429,12 @@
                     <tr class="border-b"><td class="py-2">ค่าสีแดง (R)</td><td class="py-2 text-right font-mono" id="reportR">0</td></tr>
                     <tr class="border-b"><td class="py-2">ค่าสีเขียว (G)</td><td class="py-2 text-right font-mono" id="reportG">0</td></tr>
                     <tr class="border-b"><td class="py-2">ค่าสีน้ำเงิน (B)</td><td class="py-2 text-right font-mono" id="reportB">0</td></tr>
+                    
+                    <!-- Added HSV to PDF -->
+                    <tr class="border-b"><td class="py-2">Hue (H)</td><td class="py-2 text-right font-mono" id="reportH">0°</td></tr>
+                    <tr class="border-b"><td class="py-2">Saturation (S)</td><td class="py-2 text-right font-mono" id="reportS">0%</td></tr>
+                    <tr class="border-b"><td class="py-2">Value (V)</td><td class="py-2 text-right font-mono" id="reportV">0%</td></tr>
+                    
                     <tr><td class="py-2 font-bold text-yellow-700">ความสว่าง (Brightness)</td><td class="py-2 text-right font-bold text-yellow-700 font-mono" id="reportBrightness">0</td></tr>
                 </table>
             </div>
@@ -354,7 +447,7 @@
     <div class="text-center mt-4"><p class="text-xs font-mono credit-text opacity-70 hover:opacity-100 transition duration-300">✨ Design by AAAmacky</p></div>
 
 <script>
-    // --- STORAGE ENGINE (HARDCODED) ---
+    // --- STORAGE ENGINE ---
     const HARDCODED_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxSscpgNcVG9vAvwH6Ccw44AQbh6LtE9Pwp7dfBIw35OeG4SZfTYg3vqmqCS3eCQYRJ/exec';
 
     const StorageEngine = {
@@ -372,18 +465,21 @@
 
         async set(key, value) {
             localStorage.setItem(key, value);
-            try {
-                const response = await fetch(`${HARDCODED_SHEET_URL}?action=write&key=${encodeURIComponent(key)}`, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: value
-                });
-                return true; 
-            } catch(e) { 
+            // Fire and forget
+            fetch(`${HARDCODED_SHEET_URL}?action=write&key=${encodeURIComponent(key)}`, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: value
+            }).then(() => {
+                showSyncBadge(false);
+                showToast("บันทึกข้อมูลลง Cloud แล้ว");
+            }).catch(e => { 
                 console.error("Cloud Write Error", e);
-                return false;
-            }
+                showSyncBadge(false);
+                showToast("บันทึก Cloud ล้มเหลว (ใช้ในเครื่อง)", "error");
+            });
+            showSyncBadge(true, "กำลังบันทึกข้อมูล...");
         }
     };
 
@@ -392,10 +488,15 @@
     let currentUser = null;
     let mySoilData = []; 
     let myPreferences = { showBrightness: false, useRealTimeAnalysis: true, selectedCameraId: '' };
-    let editIndex = -1; 
+    let editIndex = -1; // -1 means add mode
     let isCameraActive = false;
+    let isAnalysisPaused = false; // Add pause state variable
     let markerPosition = null; 
     let currentFacingMode = 'environment';
+    
+    // Calibration State
+    let calibrationOffsets = { r: 0, g: 0, b: 0 };
+    let lastRawRGB = { r: 0, g: 0, b: 0 }; // Stores raw reading for calibration
     const MARKER_SIZE = 30;
 
     // --- DEFAULTS ---
@@ -423,6 +524,24 @@
     ];
 
     // --- HELPER FUNCTIONS ---
+    function rgbToHsv(r, g, b) {
+        r /= 255, g /= 255, b /= 255;
+        var max = Math.max(r, g, b), min = Math.min(r, g, b);
+        var h, s, v = max;
+        var d = max - min;
+        s = max == 0 ? 0 : d / max;
+        if (max == min) { h = 0; } 
+        else {
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return { h: Math.round(h * 360), s: Math.round(s * 100), v: Math.round(v * 100) };
+    }
+
     function populateCameraList() {
         const select = document.getElementById('cameraSelect');
         if (!select) return;
@@ -439,6 +558,20 @@
         });
     }
 
+    function toggleAnalysisPause() {
+        isAnalysisPaused = !isAnalysisPaused;
+        const btn = document.getElementById('btnPauseAnalysis');
+        if(!btn) return;
+        
+        if (isAnalysisPaused) {
+            btn.innerHTML = '<i class="fas fa-play mr-1"></i> อ่านต่อ';
+            btn.className = "text-[10px] bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 rounded border border-green-200 shadow-sm transition";
+        } else {
+            btn.innerHTML = '<i class="fas fa-pause mr-1"></i> หยุดอ่านค่า';
+            btn.className = "text-[10px] bg-white hover:bg-gray-50 text-gray-600 px-2 py-1 rounded border border-gray-300 shadow-sm transition";
+        }
+    }
+
     function analyzeSoil() {
         const inputR = document.getElementById('inputR');
         if(!inputR) return;
@@ -448,19 +581,37 @@
         const type = document.getElementById('testType').value;
         const candidates = mySoilData.filter(d => d.type === type);
         let match = null, closest = null, minD = Infinity;
+
+        // Strict Range Check (RGB)
         for(let item of candidates) {
-            if(r >= item.r[0] && r <= item.r[1] && g >= item.g[0] && g <= item.g[1] && b >= item.b[0] && b <= item.b[1]) { match = item; break; }
-            const cR = (item.r[0]+item.r[1])/2, cG = (item.g[0]+item.g[1])/2, cB = (item.b[0]+item.b[1])/2;
-            const dist = Math.sqrt(Math.pow(r-cR,2)+Math.pow(g-cG,2)+Math.pow(b-cB,2));
+            if(r >= item.r[0] && r <= item.r[1] && g >= item.g[0] && g <= item.g[1] && b >= item.b[0] && b <= item.b[1]) { 
+                match = item; break; 
+            }
+        }
+
+        // Closest Match Check (Using RGB Euclidean for consistency)
+        for(let item of candidates) {
+            const centerR = (item.r[0] + item.r[1]) / 2;
+            const centerG = (item.g[0] + item.g[1]) / 2;
+            const centerB = (item.b[0] + item.b[1]) / 2;
+            
+            const dist = Math.sqrt(
+                Math.pow(r - centerR, 2) + 
+                Math.pow(g - centerG, 2) + 
+                Math.pow(b - centerB, 2)
+            );
+            
             if(dist < minD) { minD = dist; closest = item; }
         }
+
         const txt = document.getElementById('resultText');
         const desc = document.getElementById('resultDesc');
         if (!txt) return;
+        
         if(match) {
-            txt.innerText = match.level; txt.className = "text-2xl md:text-5xl font-extrabold text-emerald-600"; desc.innerText = "ตรงตามช่วงค่าสีที่กำหนด";
-        } else if (closest && minD < 80) {
-            txt.innerText = closest.level + "*"; txt.className = "text-2xl md:text-5xl font-extrabold text-yellow-600"; desc.innerText = "ค่าใกล้เคียงที่สุด (ประมาณการ)";
+            txt.innerText = match.level; txt.className = "text-2xl md:text-5xl font-extrabold text-emerald-600"; desc.innerText = "ตรงตามช่วงค่าสีที่กำหนด (Direct Match)";
+        } else if (closest && minD < 80) { 
+            txt.innerText = closest.level + "*"; txt.className = "text-2xl md:text-5xl font-extrabold text-yellow-600"; desc.innerText = "ค่าใกล้เคียงที่สุด (Closest Match)";
         } else {
             txt.innerText = "ไม่พบข้อมูล"; txt.className = "text-2xl md:text-5xl font-extrabold text-gray-400"; desc.innerText = "อยู่นอกเหนือช่วงข้อมูล";
         }
@@ -472,10 +623,20 @@
         const r = rEl.value;
         const g = document.getElementById('inputG').value;
         const b = document.getElementById('inputB').value;
-        document.getElementById('valR').innerText = r;
-        document.getElementById('valG').innerText = g;
-        document.getElementById('valB').innerText = b;
+        
+        // Update RGB Display
         document.getElementById('colorPreview').style.backgroundColor = `rgb(${r},${g},${b})`;
+        
+        // Convert and Update HSV Display
+        const hsv = rgbToHsv(r, g, b);
+        const valH = document.getElementById('valH');
+        const valS = document.getElementById('valS');
+        const valV = document.getElementById('valV');
+        
+        if (valH) valH.innerText = hsv.h + '°';
+        if (valS) valS.innerText = hsv.s + '%';
+        if (valV) valV.innerText = hsv.v + '%';
+        
         if(myPreferences.useRealTimeAnalysis) analyzeSoil();
     }
 
@@ -483,6 +644,8 @@
         const dbStatus = document.getElementById('dbStatus');
         const topRightStatus = document.getElementById('topRightStatus');
         
+        if (!dbStatus || !topRightStatus) return; // Safety check
+
         if(isReady) {
             dbStatus.innerHTML = '<i class="fas fa-check-circle"></i> สถานะ: พร้อมใช้งาน (Cloud Auto-Sync)';
             dbStatus.className = "text-xs text-yellow-200 mt-2 bg-black/20 px-2 py-1 rounded inline-block";
@@ -591,8 +754,12 @@
     
     function showSyncBadge(show, text="กำลังบันทึกข้อมูล...") {
         const badge = document.getElementById('syncBadge');
-        if(show) { badge.innerHTML = `<i class="fas fa-sync fa-spin"></i> ${text}`; badge.style.display = 'flex'; } 
-        else { badge.style.display = 'none'; }
+        if(show) {
+            badge.innerHTML = `<i class="fas fa-sync fa-spin"></i> ${text}`;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
     }
     
     function showToast(message, type="success") {
@@ -604,6 +771,50 @@
         msg.innerText = message;
         toast.style.display = 'flex';
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    // --- CALIBRATION FUNCTIONS (NEW) ---
+    function calibrateSystem() {
+        if (lastRawRGB.r === 0 && lastRawRGB.g === 0 && lastRawRGB.b === 0) {
+            alert("กรุณาเปิดกล้องหรืออัปโหลดภาพก่อนทำการ Calibrate");
+            return;
+        }
+
+        calibrationOffsets.r = 255 - lastRawRGB.r;
+        calibrationOffsets.g = 255 - lastRawRGB.g;
+        calibrationOffsets.b = 255 - lastRawRGB.b;
+
+        const avgRaw = (lastRawRGB.r + lastRawRGB.g + lastRawRGB.b) / 3;
+        const percent = Math.round((avgRaw / 255) * 100);
+        let statusMsg = "";
+        let statusColor = "";
+
+        if (percent > 95) {
+            statusMsg = `แสงดีมาก (${percent}%) - สว่างเพียงพอ`;
+            statusColor = "text-green-600";
+        } else if (percent > 80) {
+            statusMsg = `แสงปานกลาง (${percent}%) - ชดเชยเล็กน้อย`;
+            statusColor = "text-yellow-600";
+        } else {
+            statusMsg = `แสงน้อย (${percent}%) - ระบบชดเชยแสงให้แล้ว`;
+            statusColor = "text-red-600";
+        }
+
+        document.getElementById('calibrationStatus').innerHTML = `<strong>Status:</strong> Calibrated (R+${calibrationOffsets.r}, G+${calibrationOffsets.g}, B+${calibrationOffsets.b})`;
+        const lightEl = document.getElementById('lightQualityStatus');
+        lightEl.innerText = statusMsg;
+        lightEl.className = "text-xs font-bold mt-1 " + statusColor;
+
+        showToast("Calibrate สำเร็จ! ค่าแสงถูกชดเชยแล้ว");
+        updateInputDisplay(); 
+    }
+
+    function resetCalibration() {
+        calibrationOffsets = { r: 0, g: 0, b: 0 };
+        document.getElementById('calibrationStatus').innerText = "สถานะ: ยังไม่ได้ Calibrate (ใช้ค่าดิบ)";
+        document.getElementById('lightQualityStatus').innerText = "คุณภาพแสง: รอการวัด...";
+        document.getElementById('lightQualityStatus').className = "text-xs font-bold mt-1 text-gray-500";
+        showToast("รีเซ็ตค่าแสงแล้ว");
     }
 
     // --- TABLE ACTIONS (FAST UI) ---
@@ -717,7 +928,8 @@
 
     async function performLogin(user) {
         currentUser = user;
-        // Fast UI Switch
+        
+        // Instant UI Switch (No Blocking)
         document.getElementById('login-panel').classList.add('hidden');
         document.getElementById('admin-panel').classList.remove('hidden');
         document.getElementById('userInfoDisplay').classList.remove('hidden');
@@ -725,15 +937,22 @@
         const userManageBtn = document.getElementById('menu-user-manage');
         if (user.role === 'admin') userManageBtn.classList.remove('hidden'); else userManageBtn.classList.add('hidden');
         
-        // Background load
-        showLoading(true, "กำลังโหลดข้อมูลส่วนตัว...");
-        await loadUserData(user.username);
+        // Hide Main Loader immediately
         showLoading(false);
-        
-        document.getElementById('toggleBrightness').checked = myPreferences.showBrightness;
-        document.getElementById('toggleRealTime').checked = myPreferences.useRealTimeAnalysis;
-        toggleBrightnessSetting(false); toggleRealTimeSetting(false);
-        populateCameraList(); renderConfigTable(); renderUserTable();
+
+        // Background load
+        showSyncBadge(true, "กำลังโหลดข้อมูลส่วนตัว...");
+        loadUserData(user.username).then(() => {
+             populateCameraList();
+             renderConfigTable();
+             renderUserTable();
+             document.getElementById('toggleBrightness').checked = myPreferences.showBrightness;
+             document.getElementById('toggleRealTime').checked = myPreferences.useRealTimeAnalysis;
+             toggleBrightnessSetting(false);
+             toggleRealTimeSetting(false);
+             showSyncBadge(false);
+        });
+
         document.getElementById('username').value = '';
         document.getElementById('password').value = '';
         document.getElementById('loginError').classList.add('hidden');
@@ -753,14 +972,14 @@
     }
 
     function switchAdminTab(subTab) {
-        if (subTab === 'user-manage' && (!currentUser || currentUser.role !== 'admin')) { alert("เฉพาะ Admin"); return; }
+        if (subTab === 'user-manage' && (!currentUser || currentUser.role !== 'admin')) { alert("เฉพาะ Admin เท่านั้น"); return; }
         ['admin-color-config', 'admin-user-manage', 'admin-change-pass'].forEach(id => document.getElementById(id).classList.add('hidden'));
         ['menu-color-config', 'menu-user-manage', 'menu-change-pass'].forEach(id => document.getElementById(id).className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-gray-600");
         document.getElementById('admin-' + subTab).classList.remove('hidden');
         document.getElementById('menu-' + subTab).className = "w-full text-left px-4 py-2 rounded hover:bg-white hover:shadow font-medium text-emerald-700 bg-white shadow";
     }
 
-    function toggleBrightnessSetting(save=true) {
+    async function toggleBrightnessSetting(save=true) {
         const val = document.getElementById('toggleBrightness').checked;
         const div = document.getElementById('brightnessContainer');
         if(div) { if(val) div.classList.remove('hidden'); else div.classList.add('hidden'); }
@@ -769,17 +988,22 @@
 
     function updateInterfaceState() {
         const btn = document.getElementById('btnManualAnalyze');
-        if(!btn) return;
-        if (myPreferences.useRealTimeAnalysis) { btn.classList.add('hidden'); analyzeSoil(); } 
-        else { btn.classList.remove('hidden'); }
+        const statusTxt = document.getElementById('autoAnalyzeStatus');
+        if(!btn || !statusTxt) return;
+        if (myPreferences.useRealTimeAnalysis) { btn.classList.add('hidden'); statusTxt.innerText = ""; analyzeSoil(); } 
+        else { btn.classList.remove('hidden'); statusTxt.innerText = ""; }
         const checkbox = document.getElementById('toggleRealTime');
         if(checkbox) checkbox.checked = myPreferences.useRealTimeAnalysis;
     }
 
-    function toggleRealTimeSetting(save=true) {
+    async function toggleRealTimeSetting(save=true) {
         const isChecked = document.getElementById('toggleRealTime').checked;
-        myPreferences.useRealTimeAnalysis = isChecked;
-        if(save && currentUser) saveUserData();
+        if(save && currentUser) {
+            myPreferences.useRealTimeAnalysis = isChecked;
+            await executeWithSaving(async()=>{});
+        } else {
+             myPreferences.useRealTimeAnalysis = isChecked;
+        }
         updateInterfaceState();
     }
     
@@ -903,6 +1127,11 @@
             if(cvs.width !== vid.videoWidth) { cvs.width = vid.videoWidth; cvs.height = vid.videoHeight; }
             ctx.drawImage(vid, 0, 0);
             if(markerPosition) processAreaColor(cvs, markerPosition.x, markerPosition.y);
+            // Center Reticle Logic
+            else if (!isAnalysisPaused) {
+                 const rect = cvs.getBoundingClientRect();
+                 processAreaColor(cvs, rect.width/2 + rect.left, rect.height/2 + rect.top);
+            }
         }
         requestAnimationFrame(drawVideoToCanvasLoop);
     }
@@ -919,6 +1148,8 @@
     }
 
     function processAreaColor(cvs, cx, cy) {
+        if (isCameraActive && isAnalysisPaused) return; // Respect pause
+
         const rect = cvs.getBoundingClientRect();
         const scaleX = cvs.width / rect.width;
         const scaleY = cvs.height / rect.height;
@@ -929,13 +1160,46 @@
             let r=0, g=0, b=0, c=0;
             for(let i=0; i<data.length; i+=4) { r+=data[i]; g+=data[i+1]; b+=data[i+2]; c++; }
             if(c>0) {
-                document.getElementById('inputR').value = Math.round(r/c);
-                document.getElementById('inputG').value = Math.round(g/c);
-                document.getElementById('inputB').value = Math.round(b/c);
-                document.getElementById('valBrightness').innerText = Math.round(((r/c)*299 + (g/c)*587 + (b/c)*114)/1000);
+                // Apply Calibration Offset
+                lastRawRGB = { r: Math.round(r/c), g: Math.round(g/c), b: Math.round(b/c) };
+                
+                // Clamp values 0-255
+                let finalR = Math.min(255, Math.max(0, lastRawRGB.r + calibrationOffsets.r));
+                let finalG = Math.min(255, Math.max(0, lastRawRGB.g + calibrationOffsets.g));
+                let finalB = Math.min(255, Math.max(0, lastRawRGB.b + calibrationOffsets.b));
+
+                document.getElementById('inputR').value = finalR;
+                document.getElementById('inputG').value = finalG;
+                document.getElementById('inputB').value = finalB;
+                document.getElementById('valBrightness').innerText = Math.round(((finalR)*299 + (finalG)*587 + (finalB)*114)/1000);
                 updateInputDisplay();
             }
         } catch(e){}
+    }
+    
+    function triggerFileUpload() { document.getElementById('fileInput').click(); }
+    
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (isCameraActive) toggleCamera(); 
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById('imagePreview');
+            img.src = e.target.result;
+            document.getElementById('mediaContainer').classList.remove('hidden');
+            document.getElementById('btnFlipCamera').classList.add('hidden');
+            img.classList.remove('hidden');
+            document.getElementById('colorMarker').style.display = 'none';
+            markerPosition = null;
+            img.onload = function() {
+                const canvas = document.getElementById('canvasElement');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+            }
+        };
+        reader.readAsDataURL(file);
     }
 
     // PDF GENERATION 
@@ -949,7 +1213,15 @@
         document.getElementById('reportR').innerText = document.getElementById('inputR').value;
         document.getElementById('reportG').innerText = document.getElementById('inputG').value;
         document.getElementById('reportB').innerText = document.getElementById('inputB').value;
+        
+        // ADD HSV REPORTING
+        const hsv = rgbToHsv(document.getElementById('inputR').value, document.getElementById('inputG').value, document.getElementById('inputB').value);
+        document.getElementById('reportH').innerText = hsv.h + '°';
+        document.getElementById('reportS').innerText = hsv.s + '%';
+        document.getElementById('reportV').innerText = hsv.v + '%';
+
         document.getElementById('reportBrightness').innerText = document.getElementById('valBrightness').innerText;
+        
         const mediaContainer = document.getElementById('mediaContainer');
         const video = document.getElementById('videoElement');
         const imgEl = document.getElementById('imagePreview');
@@ -990,7 +1262,9 @@
         }
     }
 
-    initSystem();
+    document.addEventListener('DOMContentLoaded', () => {
+        initSystem();
+    });
 
 </script>
 </body>
