@@ -169,7 +169,12 @@
                         <div class="bg-white border rounded-lg p-4 shadow-sm">
                             <label class="font-bold text-gray-700 mb-2 block">1. เลือกธาตุที่ต้องการตรวจ:</label>
                             <select id="testType" class="w-full border rounded p-2 bg-gray-50 text-gray-700 font-semibold" onchange="analyzeSoil()">
-                                <!-- Options will be populated by JS -->
+                                <option value="N">Nitrogen (N) - ไนโตรเจน</option>
+                                <option value="Nitrate">Nitrate (NO3) - ไนเตรท</option>
+                                <option value="P">Phosphorus (P) - ฟอสฟอรัส</option>
+                                <option value="K">Potassium (K) - โพแทสเซียม</option>
+                                <option value="Soil Respiration">Soil Respiration - การหายใจของดิน</option>
+                                <option value="pH">pH - ความเป็นกรดด่าง</option>
                             </select>
                         </div>
 
@@ -205,7 +210,8 @@
                     <div class="flex flex-col h-full space-y-4 md:space-y-6">
                         <!-- Result Section -->
                         <div class="flex flex-col justify-center items-center bg-emerald-50 rounded-xl border-2 border-emerald-100 p-3 text-center shadow-sm min-h-[120px] relative">
-                            <button onclick="generatePDFReport()" class="absolute top-2 right-2 text-emerald-600 hover:text-emerald-800 p-2 text-xs font-bold border border-emerald-200 rounded hover:bg-emerald-100 transition">
+                            <!-- PDF Button with ID for toggling -->
+                            <button id="btnExportPDF" onclick="generatePDFReport()" class="absolute top-2 right-2 text-emerald-600 hover:text-emerald-800 p-2 text-xs font-bold border border-emerald-200 rounded hover:bg-emerald-100 transition">
                                 <i class="fas fa-file-pdf fa-lg"></i> Export PDF
                             </button>
                             <h3 class="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">ผลการวิเคราะห์</h3>
@@ -213,7 +219,7 @@
                             <div id="resultDesc" class="mt-1 text-sm text-gray-600">เลือกธาตุและกำหนดค่าสี</div>
                         </div>
 
-                        <!-- RGB Adjustment Section (Collapsible) -->
+                        <!-- RGB Adjustment Section (Collapsible with ID) -->
                         <div id="rgbAdjustSection" class="bg-gray-100 p-4 rounded-lg relative shadow-inner">
                             <div class="flex justify-between items-center mb-2">
                                 <h2 class="text-xs font-bold text-gray-500 uppercase">3. ค่าสี RGB (ปรับแต่ง)</h2>
@@ -237,7 +243,7 @@
                                 </div>
                             </div>
                             
-                            <!-- HSV Display Section -->
+                            <!-- HSV Display Section (New) -->
                             <div id="hsvDisplayContainer" class="mt-2 p-2 bg-indigo-50 rounded-lg border border-indigo-200 shadow-sm">
                                 <div class="flex justify-between items-center text-indigo-800 mb-1">
                                     <span class="font-bold text-xs uppercase"><i class="fas fa-palette mr-1"></i> ค่าสี HSV</span>
@@ -271,7 +277,7 @@
                             </div>
                         </div>
 
-                        <!-- Calibration Section (Collapsible) -->
+                        <!-- Calibration Section (Collapsible with ID) -->
                         <div id="calibrationSection" class="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4">
                             <h4 class="font-bold text-orange-800 mb-2 text-sm"><i class="fas fa-balance-scale"></i> ตั้งค่าแสงขาว (Calibration)</h4>
                             <div class="flex gap-2 mb-2">
@@ -517,9 +523,10 @@
         showBrightness: false, 
         useRealTimeAnalysis: true, 
         selectedCameraId: '',
-        showRGBAdjust: true, // New
-        showCalibration: true, // New
-        visibleTestTypes: ['N', 'Nitrate', 'P', 'K', 'Soil Respiration', 'pH'] // New
+        showRGBAdjust: true, 
+        showCalibration: true, 
+        visibleTestTypes: ['N', 'Nitrate', 'P', 'K', 'Soil Respiration', 'pH'],
+        showPDFExport: true // New Preference
     };
     let editIndex = -1; // -1 means add mode
     let isCameraActive = false;
@@ -969,7 +976,7 @@
         }
     }
 
-    // --- IMPORT EXCEL (FIXED) ---
+    // --- IMPORT EXCEL ---
     function triggerImportXLSX() { document.getElementById('xlsxFileInput').click(); }
     function handleImportXLSX(event) {
         const file = event.target.files[0];
@@ -1145,6 +1152,15 @@
             <label for="chk_showCalibration" class="ml-2 text-sm text-gray-700 font-bold">แสดงส่วน Calibration</label>
         `;
         container.appendChild(divCalib);
+
+         // 4. PDF Export Visibility (New)
+         const divPDF = document.createElement('div');
+         divPDF.className = "flex items-center";
+         divPDF.innerHTML = `
+            <input type="checkbox" id="chk_showPDFExport" class="w-4 h-4 text-emerald-600 rounded" ${myPreferences.showPDFExport ? 'checked' : ''} onchange="toggleSectionVisibility('showPDFExport')">
+            <label for="chk_showPDFExport" class="ml-2 text-sm text-gray-700 font-bold">แสดงปุ่ม Export PDF</label>
+        `;
+        container.appendChild(divPDF);
     }
 
     function toggleTestTypeVisibility(type) {
@@ -1234,8 +1250,11 @@
         // Visibility Toggles
         const rgbSection = document.getElementById('rgbAdjustSection');
         const calibSection = document.getElementById('calibrationSection');
+        const btnPDF = document.getElementById('btnExportPDF');
+
         if(rgbSection) rgbSection.style.display = myPreferences.showRGBAdjust !== false ? 'block' : 'none';
         if(calibSection) calibSection.style.display = myPreferences.showCalibration !== false ? 'block' : 'none';
+        if(btnPDF) btnPDF.style.display = myPreferences.showPDFExport !== false ? 'block' : 'none'; // Default true
 
         if(!btn || !statusTxt) return;
         if (myPreferences.useRealTimeAnalysis) { btn.classList.add('hidden'); statusTxt.innerText = ""; analyzeSoil(); } 
